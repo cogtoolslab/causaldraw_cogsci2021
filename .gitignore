@@ -9,7 +9,6 @@ auth.json
 auth.txt
 auth.py
 credentials.py
-*.pdf
 *.jpeg
 *.psd
 *.ai
