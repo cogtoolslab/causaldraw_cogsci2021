@@ -3,7 +3,7 @@
 How do we communicate our abstract knowledge to others? This project investigates the semantic differences between visual explanations and depictions.
 
 <p align="center" style="font-size: smaller">
-  <img width="100%" src="talk_materials/sketchGallery.pdf"></img>
+  <embed width="100%" src="talk_materials/sketchGallery.pdf" />
 </p>
 
 ## Experiments
