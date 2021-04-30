@@ -7,7 +7,7 @@ How do we communicate our abstract knowledge to others? This project investigate
 </p>
 
 
-## Drawing experiment
+## Drawing experiments
 
 ### Visual production experiment
 
