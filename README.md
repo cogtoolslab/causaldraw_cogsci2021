@@ -6,7 +6,6 @@ How do we communicate our abstract knowledge to others? This project investigate
   <img width="100%" src="talk_materials/sketchGallery.png"></img>
 </p>
 
-
 ## Drawing experiments
 
 ### Visual production experiment
@@ -58,6 +57,10 @@ A critical test of how useful such communicative strategies are is to evaluate h
 ### Identification experiment
 Here we tested how well naive viewers could use the collected visual explanations and depictions to quickly and accurately identify the referent of the drawing (i.e., which original machine that drawing represented).
 
+<p align="center" style="font-size: smaller">
+  <img width="75%" src="talk_materials/identification_task.png"></img>
+</p>
+
 #### Where to find the experiment
 - `/experiments/identification`
 
@@ -70,6 +73,10 @@ Here we tested how well naive viewers could use the collected visual explanation
 
 ### Causal Intervention experiment
 Here we tested how well naive viewers could use the collected visual explanations and depictions to quickly and accurately infer which element to intervene on to produce an effect (i.e., which part of the machine to manipulate to activate the light bulb).
+
+<p align="center" style="font-size: smaller">
+  <img width="75%" src="talk_materials/intervention_task.png"></img>
+</p>
 
 #### Where to find the experiment
 - `/experiments/intervention`
