@@ -60,7 +60,7 @@ Here we tested how well naive viewers could use the collected visual explanation
 
 #### Where to find the experiment
 - `/experiments/identification`
-- 
+
 #### Analysis
 - `/experiments/identification/analysis/` contains analysis scripts (in particular, task performance is analyzed in `causaldraw_identification_cogsci.rmd`. Here we analyzed response time and accuracy.)
 - `/analysis/utils/` contains helper functions
@@ -73,7 +73,7 @@ Here we tested how well naive viewers could use the collected visual explanation
 
 #### Where to find the experiment
 - `/experiments/intervention`
-- 
+
 #### Analysis
 - `/experiments/intervention/analysis/` contains analysis scripts (in particular, task performance is analyzed in `causaldraw_intervention_cogsci.rmd`. Here we analyzed response time and accuracy.)
 - `/analysis/utils/` contains helper functions 
