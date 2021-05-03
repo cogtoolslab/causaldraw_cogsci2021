@@ -58,7 +58,7 @@ A critical test of how useful such communicative strategies are is to evaluate h
 Here we tested how well naive viewers could use the collected visual explanations and depictions to quickly and accurately identify the referent of the drawing (i.e., which original machine that drawing represented).
 
 <p align="center" style="font-size: smaller">
-  <img width="75%" src="talk_materials/identification_task.png"></img>
+  <img width="30%" src="talk_materials/identification_task.png"></img>
 </p>
 
 #### Where to find the experiment
@@ -75,7 +75,7 @@ Here we tested how well naive viewers could use the collected visual explanation
 Here we tested how well naive viewers could use the collected visual explanations and depictions to quickly and accurately infer which element to intervene on to produce an effect (i.e., which part of the machine to manipulate to activate the light bulb).
 
 <p align="center" style="font-size: smaller">
-  <img width="75%" src="talk_materials/intervention_task.png"></img>
+  <img width="50%" src="talk_materials/intervention_task.png"></img>
 </p>
 
 #### Where to find the experiment
