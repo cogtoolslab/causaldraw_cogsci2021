@@ -1,0 +1,222 @@
+---
+title: "causaldraw_intervention"
+author: "Holly Huey"
+date: "11/8/2020"
+output: html_document
+---
+
+This script was written for the 2AFC version of causaldraw_intervention. Run on Prolific and SONA. 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message = FALSE}
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(tidyr)
+library(reshape2)
+library(dplyr) 
+# library(plyr)
+detach(package:plyr)
+library(ggplot2)
+library(stringr)
+require(tidyboot)
+library(emmeans)
+library(ggeffects)
+library(ggsignif)
+require(wesanderson)
+```
+
+## Load in data
+```{r message = FALSE}
+# note that this loads in preprocessed data so as to remove all identifiable information (originally collected on SONA)
+final_data <- read_csv("../results/csv/causaldraw_intervention_processed_data_2AFC.csv")
+```
+
+## Inspect sketches
+```{r}
+#how many unique sketches have we annotated? there should be 295 total
+length(unique(final_data$sketchID))  
+
+detach(package:plyr)
+#have all sketches been annotated at least 3 times? 
+sketchcount <- final_data %>% 
+  group_by(sketchID) %>% 
+  summarise(count = n_distinct(gameID))
+hist(sketchcount$count)
+
+mean(sketchcount$count)
+
+sketchcount$check <- ifelse(sketchcount$count < 3, TRUE, FALSE)
+needmore <- subset(sketchcount, count < 3)
+
+need1 <- subset(needmore, count == 2)
+need2 <- subset(needmore, count == 1)
+
+glimpse(need1)
+```
+
+```{r}
+# do we want to only analyze RTs for correct responses? 
+final_data_RT_corrAns <- final_data %>% 
+  filter((corrAns %in% c(1))) %>% 
+  droplevels()
+
+# convert necessary columnS into factors
+final_data_RT_corrAns$orig_gameID <- as.factor(final_data_RT_corrAns$orig_gameID)
+final_data_RT_corrAns$condition <- as.factor(final_data_RT_corrAns$condition)
+final_data_RT_corrAns$sketchID <- as.factor(final_data_RT_corrAns$sketchID)
+final_data$orig_gameID <- as.factor(final_data$orig_gameID)
+final_data$condition <- as.factor(final_data$condition)
+final_data$sketchID <- as.factor(final_data$sketchID)
+
+#check mean rt
+exp_corrAns <- final_data_RT_corrAns %>% 
+  filter(condition %in% c('explanatory'))
+mean(exp_corrAns$rt_annotationToKeyResponse)
+
+
+dep_corrAns <- final_data_RT_corrAns %>% 
+  filter(condition %in% c('depictive'))
+mean(dep_corrAns$rt_annotationToKeyResponse)
+```
+
+## Analyses for RT
+```{r}
+## full model for RT
+# m_fullRT <- lmer(log(final_data_RT$rt) ~ condition + condition*numCausal + condition*numFunctional + condition*numSymbol + condition*numBackground + (1|sketchID) + (1|toy_type) + (1|orig_gameID) + (totalStrokes|condition) + (totalStrokes|toy_type), data=final_data_RT, REML=FALSE)
+# summary(m_fullRT)
+
+m_rt <- lmer(log(rt_annotationToKeyResponse) ~ condition + condition*numCausal + condition*numFunctional + condition*numSymbol + condition*numBackground + (1|orig_gameID), data=final_data_RT_corrAns, REML=FALSE)
+summary(m_rt)
+```
+
+### plot for RT
+```{r}
+## getting predictions
+df_rt <- ggpredict(m_rt, terms = "condition")
+
+## making plot
+plot_rt <- ggplot(df_rt, aes(x, predicted, fill=x)) +
+  geom_bar(aes(y=predicted), stat="summary", width = .75, position = position_dodge(width = 0.5)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), alpha = .8, size = .75, width = 0) +
+  # geom_signif(annotation = "ns",
+  #           y_position = 4500,
+  #           xmin = "depictive",
+  #           xmax = "explanatory",
+  #           tip_length = 0) +
+  # geom_text(aes(label = predicted), position=position_dodge(width=0.9), vjust=-0.25) +
+  xlab("condition") +
+  ylab("rt") +
+  scale_x_discrete(labels=c("depict", "explain")) +
+  ylim(0, 5000) +
+  theme_light() +
+  theme(axis.text.x = element_text(size = 6), 
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        legend.position = "none")
+
+plot_rt + scale_fill_manual(values=c("#919191", "#00766e"))
+
+ggsave('../results/plots/intervention_rt.pdf', height = 8, width = 6,  units = 'cm', useDingbats = F)
+```
+
+## Analyses for corrAns
+```{r}
+## full model for corrAns
+# m_fullcorrAns <- glmer(final_data$corrAns ~ condition + condition*numCausal + condition*numFunctional + condition*numSymbol + condition*numBackground + (1|sketchID) + (1|toy_type) + (1|orig_gameID) + (totalStrokes|condition) + (totalStrokes|toy_type), family="binomial", data=final_data, nAGQ=0)
+# summary(m_fullcorrAns)
+
+## reduced model, since the previous was overfitted
+#https://stats.stackexchange.com/questions/304132/glmer-not-converging
+m_corrAns <- glmer(corrAns ~ condition + condition*numCausal + condition*numFunctional + condition*numSymbol + condition*numBackground + (1|sketchID) + (1|orig_gameID), family="binomial", data=final_data, nAGQ=0)
+summary(m_corrAns)
+```
+
+### plot for corrAns
+```{r}
+df_corrAns <- ggpredict(m_corrAns, terms = c("condition"))
+
+## making plot
+plot_corrAns <- ggplot(df_corrAns, aes(x, predicted, fill=x)) +
+  geom_bar(aes(y=predicted), stat="summary", width = .75, position = position_dodge(width = 0.5)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), alpha = .8, size = .75, width=0) +
+  geom_signif(annotation = "**",
+            y_position = 0.9,
+            xmin = "depictive",
+            xmax = "explanatory",
+            tip_length = 0) +
+  geom_text(aes(label = predicted), position=position_dodge(width=0.9), vjust=-0.25) +
+  xlab("condition") +
+  ylab("corrAns") +
+  scale_x_discrete(labels=c("depict", "explain")) +
+  ylim(0,1) +
+  theme_light() +
+  theme(axis.text.x = element_text(size = 6), 
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        legend.position = "none")
+
+plot_corrAns + scale_fill_manual(values=c("#919191", "#00766e"))
+
+ggsave('../results/plots/intervention_corrAns.pdf', height = 8, width = 6,  units = 'cm', useDingbats = F)
+# ggsave('../results/plots/intervention_corrAns.pdf', height = 8, width = 3,  units = 'cm', useDingbats = F)
+```
+
+### check for above chance in accuracy 
+```{r}
+## is explanatory above chance? 
+final_data_exp <- final_data %>%
+  filter(condition %in% c("explanatory"))
+
+above_chance_exp <- glmer(corrAns ~ 1 + (1|orig_gameID), family='binomial', data=final_data_exp)
+summary(above_chance_exp)
+
+## is depictive above chance? 
+final_data_dep <- final_data %>%
+  filter(condition %in% c("depictive"))
+
+above_chance_dep <- glmer(corrAns ~ 1 + (1|orig_gameID), family='binomial', data=final_data_dep)
+summary(above_chance_dep)
+```
+
+## chi-square of sketchType
+```{r}
+df <- read_csv('../results/csv/sketchTypes.csv')
+
+tier_performance_table <- prop.table(table(df$sketchType, df$interventionPerf), margin=2)*100
+tier_performance_table <- table(df$sketchType, df$interventionPerf)
+chisq.test(tier_performance_table)
+```
+
+## plot sketchType (from causaldraw_intervention_small_analysis.ipynb)
+```{r}
+## grab data
+sketchType <- read_csv("../results/csv/sketchTypes.csv")
+colors <- c("#3d3d3d","#7f97ac","#3d3d3d","#63958c","#3d3d3d","#63958c",
+            "#3d3d3d","#63958c","#3d3d3d", "#f4d79f")
+
+sketchType <- sketchType %>%
+  distinct(sketchType, interventionPerf) %>%
+  mutate(color = colors) %>%
+  inner_join(sketchType, by = c('sketchType', 'interventionPerf'))
+
+plot_sketchType <- sketchType %>% 
+  ggplot(aes(x=sketchType, y=tier_performance, fill=color)) +
+  geom_bar(stat="summary", width = .7, position = position_dodge(width = .75)) +
+  scale_y_continuous(breaks=seq(0,25,5)) +
+  # ylim(0, 35) +
+  theme_light() +
+  scale_fill_identity() +
+  theme(axis.text.x=element_text(color = "white"),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        legend.position = "none")
+
+ggsave('../results/plots/sketchType.pdf', height = 8, width = 6,  units = 'cm', useDingbats = F)
+```
+
+
+

@@ -1,0 +1,322 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+
+This is analysis notebook for *causaldraw*. 
+
+## Hypotheses
+If participants are more selective when producing informative visual explanations than when producing faithful visual depictions, we hypothesize that visual explanations will contain less detail than visual depictions. 
+
+Specifically:
+
+1. We predict that participants will use less “ink” in their visual explanations vs. visual depictions, measured by the mean pixel intensity of grayscale renderings of sketches produced in each condition.
+
+2. We predict that participants will use fewer strokes in their visual explanations vs. visual depictions, where each stroke is defined as the mark made between the depression of the mouse cursor (“pen down”) and the lifting of the mouse cursor (“pen up”). 
+
+3. We predict that participants will spend less time drawing while producing visual explanations vs. visual depictions, defined as the time elapsed between the initiation of the first stroke and the completion of the final stroke of each sketch.
+
+```{r message = False}
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(tidyr)
+library(dplyr)
+library(emmeans)
+library(ggeffects)
+```
+
+## Load in data
+```{r message=False}
+#load data - run on mTurk 2020
+sketch_dat <- read_csv('../results/csv/causaldraw_sketch_data_run1.csv')
+stroke_dat <- read_csv('../results/csv/causaldraw_stroke_data_run1.csv')
+pixel_dat <- read_csv('../results/csv/meanpix_run1.csv')
+survey_dat <- read_csv('../results/csv/causaldraw_survey_data_run1.csv')
+
+#join pixel data with sketch data
+fullsketch_dat <- sketch_dat %>% 
+  mutate(new_file_id = str_remove_all(file_id, "ABBA_30"), 
+         new_file_id = str_remove_all(new_file_id, "BAAB_30"), 
+         new_file_id = paste0(new_file_id, condition)) %>% 
+  # left_join(pixel_dat, by = c("gameID", "new_file_id")) %>%
+  select(-c(new_file_id))
+```
+
+## Exclusion
+```{r}
+#check if any sketches were drawn with 1 stroke
+ifOneStroke = 1 %in% fullsketch_dat$numStrokes
+
+exclude <- fullsketch_dat[((fullsketch_dat$numStrokes == 1)),]
+exclude$gameID
+exclude$file_id
+
+#remove sketches
+fullsketch_dat <- fullsketch_dat[!((fullsketch_dat$numStrokes == 1)),]
+#run1
+fullsketch_dat <- fullsketch_dat %>% 
+  #not a machine-sketch
+  filter(!((gameID %in% c("1073-31f69960-6dfc-4e45-9a3c-6d7eaa33103e") & (file_id %in% c("levers_2_BAAB_30"))))) %>% 
+  #only 1 stroke
+  filter(!((gameID %in% c("7376-6f5f07d7-86c3-4c4c-a052-3634d7755b9d") & (file_id %in% c("pulleys_2_BAAB_30")))))
+
+#check if removed
+ifOneStroke = 1 %in% fullsketch_dat$numStrokes
+
+#remove sketches from stroke dataframe (run1)
+stroke_dat <- stroke_dat[!((stroke_dat$gameID == '7376-6f5f07d7-86c3-4c4c-a052-3634d7755b9d') & (stroke_dat$file_id == 'pulleys_2_BAAB_30')),]
+stroke_dat <- stroke_dat[!((stroke_dat$gameID == '1073-31f69960-6dfc-4e45-9a3c-6d7eaa33103e') & (stroke_dat$file_id == 'levers_2_BAAB_30')),]
+```
+
+## Inspect Datasets
+```{r}
+#how many visual explanations and visual depictions? 
+fullsketch_dat$toy_id <- paste(fullsketch_dat$toy_type, "_", fullsketch_dat$toy_variant)
+fullsketch_dat$sketch_id <- paste(fullsketch_dat$toy_id, "_", fullsketch_dat$gameID)
+
+exp <- fullsketch_dat %>% 
+  filter(condition %in% c("explanatory"))
+length(unique(exp$sketch_id))
+
+dep <- fullsketch_dat %>% 
+  filter(condition %in% c("depictive"))
+length(unique(dep$sketch_id))
+
+#how many total sketches? (expected run1 = 300 from 50 participants)
+length(unique(fullsketch_dat$sketch_id))
+
+#how many strokes in explanatory and depictive drawings?
+table(stroke_dat$condition)
+
+mean(exp$numStrokes)
+mean(dep$numStrokes)
+```
+
+```{r}
+#export list of workerIDs
+length(unique(fullsketch_dat$workerId))
+
+causaldraw_workerID <- as.data.frame(unique(fullsketch_dat$workerId))
+colnames(causaldraw_workerID)[1] <- "workerID"
+
+#export run1 causaldraw_workerID
+write.csv(causaldraw_workerID,'../results/csv/run1/causaldraw_workerID.csv', row.names = FALSE)
+```
+
+#post-demographic analysis
+```{r}
+## count gender
+sketches_survey <- merge(fullsketch_dat, survey_dat, by = c("workerId"))
+
+#preprocessing
+processed <- sketches_survey %>%
+  separate(responses, c("participantSex", "inputDevice"), ":", remove = FALSE)
+
+#make text pretty
+processed$inputDevice <- substr(processed$inputDevice,2,2) 
+colnames(processed)[which(names(processed) == "inputDevice")] <- "gender"
+
+#count
+count_gender <- processed %>% 
+  filter(gender %in% c("M", "F", "N"))
+count_gender_ <- count_gender[!duplicated(count_gender$gameID),]
+table(count_gender_$gender)
+
+
+## calculate mean age
+processed <- processed %>%
+  separate(responses, c("participantAge", "participantComments"), ",", remove = FALSE)
+processed$DOB <- substr(processed$participantComments,19,22) 
+calc_age <- processed[grep('^[0-9]', processed$DOB),]
+calc_age$DOB <- as.numeric(calc_age$DOB)
+calc_age$DOT <- 2020
+calc_age$age <- calc_age$DOT - calc_age$DOB
+mean(calc_age$age)
+```
+
+glimpse(fullsketch_dat)
+
+## Analyses
+*Number of strokes*
+Likewise for numStrokes, we will first attempt to fit the maximal model (see below), and if that fails to converge, specify a simpler model that only contains random intercepts for participants and items.
+```{r}
+m3 <- lmer(numStrokes ~ condition + (1 + condition | gameID) +  (1 + condition | toy_type) , data = fullsketch_dat)
+summary(m3)
+```
+
+```{r}
+m4 <- lmer(numStrokes ~ condition + (1 | gameID) + (1 | toy_type), data = fullsketch_dat)
+summary(m4)
+```
+
+### plot of numStrokes
+```{r}
+## getting predictions
+df_numStrokes <- ggpredict(m4, terms = "condition")
+
+## making plot
+plot_numStrokes <- ggplot(df_numStrokes, aes(x, predicted, fill=x)) +
+  geom_bar(aes(y=predicted), stat="summary", width = .6, position = position_dodge(width = 0.5)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), alpha = .8, size = .75, width=0) +
+  xlab("condition") +
+  ylab("numStrokes") +
+  # ylim(0, 25) +
+  ylim(0, 30) +
+  theme_light() +
+  theme(axis.text.x = element_text(size = 6), 
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        legend.position = "none")
+  
+plot_numStrokes + scale_fill_manual(values=c("#919191", "#00766e"))
+
+ggsave('../results/plots/causaldraw_numStrokes.pdf', height = 8, width = 4.25, units = 'cm', useDingbats = F)
+```
+
+*3. Drawing time of sketch*
+Likewise for drawingTime: 
+```{r}
+#pick out first stroke of startStrokeTime
+calc_first <- stroke_dat %>% 
+  group_by(gameID, file_id) %>% 
+  summarise_all(first)
+
+#pick out first stroke of endStrokeTime
+calc_last <- stroke_dat %>% 
+  group_by(gameID, file_id) %>% 
+  summarise_all(last)
+
+drawing_time <- merge(calc_first, calc_last, by = c("gameID", "file_id"))
+drawing_time$drawingTime <- (drawing_time$endStrokeTime.y - drawing_time$startStrokeTime.x)
+
+#calculate amount of time participants spend on each drawing (in SEC)
+drawingTime <- (calc_last$endStrokeTime - calc_first$startStrokeTime)
+drawingTime <- as.data.frame(drawingTime)
+
+m5 <- lmer(drawingTime ~ condition.x + (1 + condition.x | gameID) +  (1 + condition.x | toy_type.x), data = drawing_time)
+summary(m5)
+
+#if falls to converge
+m_time <- lmer(drawingTime ~ condition.x + (1 | gameID) + (1 | toy_type.x), data = drawing_time)
+summary(m_time)
+
+#compare both causaldraw batches
+m_time_comp <- lmer(drawingTime ~ condition.x + condition.x*replication_type.x + (1 | gameID) + (1 | toy_type.x), data = drawing_time)
+summary(m_time_comp)
+```
+
+### split by condition
+```{r}
+### depictive
+#pick out first stroke of startStrokeTime
+final_data_dep <- stroke_dat %>% 
+  filter(condition %in% c("depictive"))
+
+calc_first_dep <- final_data_dep %>% 
+  group_by(gameID, file_id) %>% 
+  summarise_all(first)
+
+#pick out first stroke of endStrokeTime
+calc_last_dep <- final_data_dep %>% 
+  group_by(gameID, file_id) %>% 
+  summarise_all(last)
+
+drawing_time_dep <- merge(calc_first_dep, calc_last_dep, by = c("gameID", "file_id"))
+drawing_time_dep$drawingTime <- (drawing_time_dep$endStrokeTime.y - drawing_time_dep$startStrokeTime.x)
+
+#calculate amount of time participants spend on each drawing (in SEC)
+drawingTime_dep <- (calc_last_dep$endStrokeTime - calc_first_dep$startStrokeTime)
+drawingTime_dep <- as.data.frame(drawingTime_dep)
+
+mean(drawingTime_dep$drawingTime_dep)
+
+### explanatory
+#pick out first stroke of startStrokeTime
+final_data_exp <- stroke_dat %>% 
+  filter(condition %in% c("explanatory"))
+
+calc_first_exp <- final_data_exp %>% 
+  group_by(gameID, file_id) %>% 
+  summarise_all(first)
+
+#pick out first stroke of endStrokeTime
+calc_last_exp <- final_data_exp %>% 
+  group_by(gameID, file_id) %>% 
+  summarise_all(last)
+
+drawing_time_exp <- merge(calc_first_exp, calc_last_exp, by = c("gameID", "file_id"))
+drawing_time_exp$drawingTime <- (drawing_time_exp$endStrokeTime.y - drawing_time_exp$startStrokeTime.x)
+
+#calculate amount of time participants spend on each drawing (in SEC)
+drawingTime_exp <- (calc_last_exp$endStrokeTime - calc_first_exp$startStrokeTime)
+drawingTime_exp <- as.data.frame(drawingTime_exp)
+
+mean(drawingTime_exp$drawingTime_exp)
+```
+
+### plot for drawing time
+```{r}
+## getting predictions
+df_drawingTime <- ggpredict(m_time, terms = "condition.x")
+
+## making plot
+plot_drawingTime <- ggplot(df_drawingTime, aes(x, predicted, fill=x)) +
+  geom_bar(aes(y=predicted), stat="summary", width = .75, position = position_dodge(width = 0.5)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), alpha = .8, size = .75, width=0) +
+  xlab("condition") +
+  ylab("drawingTime") +
+  ylim(0, 80000) +
+  theme_light() +
+  theme(axis.text.x = element_text(size = 6), 
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        legend.position = "none")
+
+plot_drawingTime + scale_fill_manual(values=c("#919191", "#00766e"))
+
+ggsave('../results/plots/causaldraw_drawingTime.pdf', height = 8, width = 4.25, units = 'cm', useDingbats = F)
+
+```
+
+```{r}
+#check how long participants take to complete the entire experiment (in MIN)
+studyTime <- (fullsketch_dat$time_elapsed/1000)/60
+mean(studyTime)
+```
+
+
+## Exploratory Analyses
+We also plan to analyze potential differences in reaction time, i.e., period of time between the beginning of trial and when participants make their first stroke. This is motivated by the possibility that if participants in the depictive condition attempt to accurately capture the shape, size, and location of elements, they may begin drawing immediately after the video demonstration before their memory decays, resulting in relatively low reaction times. However, if participants in the explanatory condition attempt to draw how elements relate to each other, they may plan how they will represent this abstract information before beginning their drawing, resulting in relatively high reaction times. 
+
+*4. Reaction time*
+```{r}
+#calculate when 
+firststroke_dat <- stroke_dat %>% 
+  group_by(gameID, file_id, startResponseTime) %>% 
+  filter(row_number()==1) 
+
+rt <- firststroke_dat$startStrokeTime - firststroke_dat$startResponseTime
+
+m6 <- lmer(rt ~ condition +  (1 + condition | gameID) +  (1 + condition | toy_type), data = firststroke_dat)
+summary(m6)
+```
+
+``` {r}
+#arcLength
+m7 <- lmer(arcLength ~ condition + (1 + condition | gameID) +  (1 + condition | toy_type) , data = stroke_dat)
+summary(m7)
+
+m8 <- lmer(arcLength ~ condition + (1 | gameID) + (1 | toy_type), data = stroke_dat)
+summary(m8)
+```
+
+
+
+
+
+

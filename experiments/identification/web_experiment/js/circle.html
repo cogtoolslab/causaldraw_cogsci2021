@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+  <meta charset="utf-8">
+  <title></title>
+</head>
+
+<style media="screen">
+  #container {
+    width: 600px;
+    height: 600px;
+    /* border: 2px solid #999; */
+    position: relative;
+    margin: auto;
+  }
+
+  .field {
+    /* orig stim dimensions are 1996 x 1612 = .8076 ratio */
+    width: 125px;
+    height: 100px;
+    position: absolute;
+    border: 2px solid #999;
+    display: none;
+  }
+
+  .field:hover {
+    border: 2px solid #606060;
+    box-shadow: 0px 0px 20px 5px #404040;
+    cursor: pointer;
+  }
+
+  .field-clicked {
+    width: 125px;
+    height: 100px;
+    position: absolute;
+    border: 2px solid #606060;
+    box-shadow: 0px 0px 20px 5px #404040;
+  }
+
+  #input {
+    display: none;
+  }
+
+  #start-crosshair,
+  #end-crosshair {
+    width: 20px;
+    height: 20px;
+    left: 300px;
+    top: 300px;
+    position: relative;
+  }
+
+  #end-crosshair {
+    display: none;
+  }
+
+  #clock-container {
+    width: 100%;
+    height: 30px;
+    /* border: red 2px solid; */
+  }
+
+  #clock {
+    width: 20px;
+    height: 25px;
+    top: 0px;
+    float: right;
+    position: relative;
+  }
+
+  .stopwatch {
+    float: right;
+    color: #808080;
+    top: 20px;
+    /* text-align: center; */
+    /* display: none; */
+  }
+
+  .stopwatch span {
+    font-weight: bold;
+    display: block;
+  }
+
+  .stopwatch a {
+    padding-right: 5px;
+    text-decoration: none;
+  }
+
+  #canvas {
+    width: 125px;
+    height: 125px;
+    position: absolute;
+    top: 250px;
+    left: 250px;
+    border: 2px solid #999;
+    background-color: white;
+    z-index: 1;
+  }
+
+  #sketch {
+    position: relative;
+    height: 100%;
+    z-index: 2;
+  }
+</style>
+
+<body>
+  <!-- timer info -->
+  <div id="clock-container">
+    <img id="clock" src='../stim/clock.png'></img>
+  </div>
+  <div class="stopwatch" id="myTimer"></div>
+
+  <!-- number of fields is defaulted to 6 but can be edited -->
+  <div id="input">
+    number of fields: <input type="text" value="6" />
+  </div>
+
+  <!-- container for stimuli presentation -->
+  <div id="container">
+    <img id="start-crosshair" src='../stim/crosshair.png'></img>
+    <img id="end-crosshair" src='../stim/crosshair.png'></img>
+    <div id="canvas">
+      <img id="sketch" src='../stim/0219-e77f751a-a934-4602-97a0-f2c0bd8bd638_gears_1_explanatory.png'></img>
+    </div>
+  </div>
+</body>
+
+<script type="text/javascript">
+  window.onload = function() {
+    setInterval(function() {
+      $("#canvas").hide()
+    }, 1000);
+  };
+
+  $("#start-crosshair").click(function() {
+    $(".field").fadeIn(50);
+    $("#start-crosshair").hide();
+    $("#end-crosshair").show();
+  });
+
+  // generate fields for stimuli
+  function createFields() {
+    $('.field').remove();
+    var container = $('#container');
+    let fieldCount = $('input:text').val();
+
+    // add stimuli array
+    var images = ['../stim/gears_1.png',
+      '../stim/gears_2.png',
+      '../stim/levers_1.png',
+      '../stim/levers_2.png',
+      '../stim/pulleys_1.png',
+      '../stim/pulleys_2.png'
+    ];
+
+    // randomly add stimulus to each field without repeat
+    for (var i = 0; i < fieldCount; i++) {
+      let randomIndex = Math.floor(Math.random() * images.length);
+      $('<img />', {
+        'class': 'field',
+        'attribute': i,
+        'src': images[randomIndex],
+      }).appendTo(container);
+
+      images.splice(randomIndex, 1);
+    } // close for loop
+  } // close createFields
+
+  // distribute fields such that they are equidistant and equiangular
+  function distributeFields() {
+    // generate random angle of rotation upon page load
+    var ang = Math.floor(Math.random() * 360) + 0;
+    console.log('rot angle', ang);
+
+    var radius = 275;
+    var fields = $('.field'),
+      container = $('#container'),
+      width = container.width(),
+      height = container.height(),
+      angle = ang,
+      step = (2 * Math.PI) / fields.length;
+
+    fields.each(function() {
+      var x = Math.round(width / 2 + radius * Math.cos(angle) - $(this).width() / 2);
+      var y = Math.round(height / 2 + radius * Math.sin(angle) - $(this).height() / 2);
+      $(this).css({
+        left: x + 'px',
+        top: y + 'px'
+      });
+      angle += step;
+    });
+  } // close distributeFields
+
+  // generate and distrubute fields depending on input value (default is 6)
+  $('input').change(function() {
+    createFields();
+    distributeFields();
+  });
+
+  // generate and distribute fields
+  createFields();
+  distributeFields();
+
+  // flag to prevent accidental double click on crosshair
+  var check = false;
+
+  // create stopWatch timer
+  var Stopwatch = function(elem, options) {
+
+    $('.field').click(function() {
+      $('.field').removeClass('field-clicked');
+      $(this).toggleClass('field-clicked');
+
+      // remove fields upon click
+      $('.field').fadeOut(50);
+
+      // once selection has been made, allow user to click crosshair to advance trial
+      check = true;
+      console.log(check, 'allow crosshair to be clicked');
+
+      // stop myTimer
+      stop();
+    }); // close field function
+
+    var timer = createTimer(),
+      offset,
+      clock,
+      interval;
+
+    // default options
+    options = options || {};
+    options.delay = options.delay || 1;
+    // append elements
+    elem.appendChild(timer);
+    // initialize upon page load
+    reset();
+
+    // functions starting, stopping, and resetting timer
+    function createTimer() {
+      return document.createElement("span");
+    }
+
+    function start() {
+      if (!interval) {
+        offset = Date.now();
+        interval = setInterval(update, options.delay);
+      }
+    }
+
+    function stop() {
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+    }
+
+    function reset() {
+      clock = 0;
+      render(0);
+    }
+
+    function update() {
+      clock += delta();
+      render();
+    }
+
+    function render() {
+      timer.innerHTML = clock / 1000;
+    }
+
+    function delta() {
+      var now = Date.now(),
+        d = now - offset;
+      offset = now;
+      return d;
+    }
+
+    // public API
+    this.start = start;
+    this.stop = stop;
+    this.reset = reset;
+  }; // close stopwatch variable
+
+  // start timer upon page load and set delay amount
+  var myTimer = document.getElementById("myTimer");
+  startTimer = new Stopwatch(myTimer, {
+    delay: 100
+  });
+  startTimer.start();
+
+  // refresh (re-generate/re-distribute) upon page load
+  function refreshPage() {
+    window.location.reload();
+  }
+
+  // refresh page upon crosshair click and thus advance trial
+  $('#end-crosshair').click(function() {
+    if (check == true) {
+      refreshPage();
+    } else {
+      return
+    } // close else statement
+  }); // close crosshair function
+</script>
+
+</html>

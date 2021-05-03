@@ -1,0 +1,889 @@
+---
+title: "causaldraw_annotations analysis"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message = FALSE}
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(tidyr)
+library(dplyr)
+library(ggrepel)
+# detach(package:dplyr)
+detach(package:plyr)
+library(ggplot2)
+library(stringr)
+require(tidyboot)
+require(wesanderson)
+```
+
+## Load in and preprocess data
+```{r message = FALSE}
+orig_data1 <- read_csv("../results/csv/causaldraw_annotations_label_data_pilot1.csv") 
+orig_data2 <- read_csv("../results/csv/causaldraw_annotations_label_data_pilot2.csv")
+orig_data3 <- read_csv("../results/csv/causaldraw_annotations_label_data_pilot3.csv") 
+orig_data4 <- read_csv("../results/csv/causaldraw_annotations_label_data_pilot4.csv") 
+orig_data5 <- read_csv("../results/csv/causaldraw_annotations_label_data_pilot5.csv") 
+
+#batches were reshuffled after for the pilot 5
+orig_data6 <- read_csv("../results/csv/causaldraw_annotations_label_data_pilot6.csv")
+orig_data7 <- read_csv("../results/csv/causaldraw_annotations_label_data_pilot7.csv")
+orig_data8 <- read_csv("../results/csv/causaldraw_annotations_label_data_pilot8.csv")
+orig_data9 <- read_csv("../results/csv/causaldraw_annotations_label_data_pilot9.csv")
+orig_data10 <- read_csv("../results/csv/causaldraw_annotations_label_data_pilot10.csv")
+orig_data11 <- read_csv("../results/csv/causaldraw_annotations_label_data_pilot11.csv")
+
+#extract batch_id_across_machines from strokes (this is only for pilots 1-5)
+orig_data1$batch_id_across_machines <- str_extract(gsub("'", '', orig_data1$strokes), "(?<=batch_id_across_machines: )\\w+")
+orig_data2$batch_id_across_machines <- str_extract(gsub("'", '', orig_data2$strokes), "(?<=batch_id_across_machines: )\\w+")
+orig_data3$batch_id_across_machines <- str_extract(gsub("'", '', orig_data3$strokes), "(?<=batch_id_across_machines: )\\w+")
+orig_data4$batch_id_across_machines <- str_extract(gsub("'", '', orig_data4$strokes), "(?<=batch_id_across_machines: )\\w+")
+orig_data5$batch_id_across_machines <- str_extract(gsub("'", '', orig_data5$strokes), "(?<=batch_id_across_machines: )\\w+")
+
+#combine datasets as needed into full dataset
+orig_data <- mget(paste0('orig_data', c('1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'))) %>%
+   dplyr::bind_rows()
+
+orig_survey1 <- read_csv("../results/csv/causaldraw_annotations_survey_data_pilot1.csv") 
+orig_survey2 <- read_csv("../results/csv/causaldraw_annotations_survey_data_pilot2.csv")
+orig_survey3 <- read_csv("../results/csv/causaldraw_annotations_survey_data_pilot3.csv") 
+orig_survey4 <- read_csv("../results/csv/causaldraw_annotations_survey_data_pilot4.csv") 
+orig_survey5 <- read_csv("../results/csv/causaldraw_annotations_survey_data_pilot5.csv") 
+orig_survey6 <- read_csv("../results/csv/causaldraw_annotations_survey_data_pilot6.csv")
+orig_survey7 <- read_csv("../results/csv/causaldraw_annotations_survey_data_pilot7.csv")
+orig_survey8 <- read_csv("../results/csv/causaldraw_annotations_survey_data_pilot8.csv")
+orig_survey9 <- read_csv("../results/csv/causaldraw_annotations_survey_data_pilot9.csv")
+orig_survey10 <- read_csv("../results/csv/causaldraw_annotations_survey_data_pilot10.csv")
+orig_survey11 <- read_csv("../results/csv/causaldraw_annotations_survey_data_pilot11.csv")
+
+orig_survey <- mget(paste0('orig_survey', c('1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'))) %>%
+   dplyr::bind_rows()
+
+orig_data <- orig_data %>% 
+  select(-c(strokes, ref_url, roi_colors, roi_ids, rois, batch_id_within_machine))
+```
+
+## Initial exclusion checks
+```{r message=FALSE}
+##Preprocessing
+#how many participants have been run?
+totalrun <- length(unique(orig_data$gameID))
+glimpse(totalrun)
+
+#reorder by gameID
+orig_data <- orig_data[order(orig_data$gameID),]
+
+#remove too short strokes, unintelligible strokes, "light" elements because participants had been asked to NOT draw the light
+cleanup <- orig_data %>%
+  filter(!(roi_labelName %in% c("short"))) %>%
+  filter(!(roi_labelName %in% c("unintelligible"))) %>%
+  filter(!(roi_labelName %in% c("light")))
+
+# cleanup <- orig_data
+
+#how many participants did not complete the full data session?
+checkcomplete <- orig_data %>%
+  group_by(gameID) %>%
+  summarise(count = n_distinct(trialNum))
+
+incompleteSubs <- subset(checkcomplete, count != 11)
+glimpse(incompleteSubs)
+glimpse(length(unique(incompleteSubs$gameID)))
+
+#how many participants before exclusion (paid)
+totalpaid <- totalrun - length(unique(incompleteSubs$gameID))
+glimpse(totalpaid)
+
+#how many participants did not complete the catch trial? (remove these data sessions)
+checkallowed <- orig_data %>%
+  group_by(gameID, catch) %>%
+  summarise(count = n_distinct(trialNum))
+
+checking <- checkallowed %>% 
+  filter(all(c(TRUE, FALSE) %in% catch))
+
+missingcatch <- setdiff(orig_data$gameID,checking$gameID)
+missingcatch <- as.data.frame(missingcatch)
+colnames(missingcatch)[1] <- "gameID"
+glimpse(missingcatch)
+glimpse(length(missingcatch$gameID))
+#remove incomplete sessions
+cleanup <- cleanup[!(cleanup$gameID %in% missingcatch$gameID),]
+
+#check how many participants?
+length(unique(cleanup$gameID)) 
+
+#did any participants speed click through the test trials?
+responsespeed <- aggregate(timeResponseLatency ~ trialNum * gameID, orig_data, mean)
+responsespeed$seconds <- responsespeed$timeResponseLatency/1000
+responsespeed$check <- ifelse(responsespeed$seconds < 0.5, TRUE, FALSE)
+speedclicking <- TRUE %in% responsespeed$check
+glimpse(speedclicking)
+speedyones <- subset(responsespeed, seconds < 0.5)
+glimpse(speedyones)
+glimpse(length(unique(speedyones$gameID)))
+
+#remove speedy sessions
+cleanup <- cleanup[!(cleanup$gameID %in% speedyones$gameID),]
+
+#check how many participants?
+length(unique(cleanup$gameID)) 
+
+### remove data sessions with reported technical problems ("5132-439a7475-60b4-41cb-875d-9899392f6edf")
+cleanup <- cleanup %>%
+  filter(!(gameID %in% c("5132-439a7475-60b4-41cb-875d-9899392f6edf")))
+  
+#check how many participants?
+length(unique(cleanup$gameID)) 
+  
+#is strokeIndex incrementing properly?
+checkordered <- orig_data %>%
+  group_by(gameID, sketchID, trialNum) %>%
+  summarize(result = all(diff(strokeIndex) == 1)) %>%
+  ungroup()
+isordered <- FALSE %in% checkordered$result
+#if false, then strokeIndex is incrementing properly
+glimpse(isordered)
+
+#cleanup environment
+rm(checkordered, isordered, speedclicking, responsespeed, checkcomplete, checking, checkallowed, incompleteSubs, orig_data1, orig_data2, orig_data3)
+```
+
+## Generate dataframes
+```{r message = FALSE}
+#add for combinations of causal, functional, and symbols
+combo_key <- cleanup %>% 
+  distinct(causal, functional, symbol) %>% 
+  mutate(combo_id = 1:n()) 
+
+cleanup <- cleanup %>%
+  inner_join(combo_key, by = c("causal", "functional", "symbol"))
+
+#extract test trials
+data <- cleanup %>% 
+    filter(!(catch %in% c(TRUE))) %>% 
+    group_by(orig_gameID, sketchID, condition)
+
+#how many participants?
+length(unique(data$gameID)) 
+
+#extract catch trials
+data.catch <- cleanup %>% 
+  filter(catch %in% c(TRUE)) %>% 
+  group_by(orig_gameID, sketchID, condition)
+
+#cleanup environment
+rm(combo_key)
+```
+
+## Apply filtering based on catch trial performance
+```{r message = FALSE}
+#load in reference dataframes
+#all catch trials are "depictive" sketches
+reference_A <- read_csv("../results/csv/causaldraw_annotations_label_data_gears1reference.csv")
+reference_B <- read_csv("../results/csv/causaldraw_annotations_label_data_gears2reference.csv")
+reference_C <- read_csv("../results/csv/causaldraw_annotations_label_data_levers1reference.csv")
+reference_D <- read_csv("../results/csv/causaldraw_annotations_label_data_levers2reference.csv")
+reference_E <- read_csv("../results/csv/causaldraw_annotations_label_data_pulleys1reference.csv")
+reference_F <- read_csv("../results/csv/causaldraw_annotations_label_data_pulleys2reference.csv")
+
+data.catch <- as.data.frame(data.catch)
+reference_A <- as.data.frame(reference_A)
+reference_B <- as.data.frame(reference_B)
+reference_C <- as.data.frame(reference_C)
+reference_D <- as.data.frame(reference_D)
+reference_E <- as.data.frame(reference_E)
+reference_F <- as.data.frame(reference_F)
+
+#give unique identifier for annotations to handle order of strokes
+data.catch$value <- paste(data.catch$strokeIndex, data.catch$roi_labelName, data.catch$roi_labelNum, sep = '_')
+reference_A$value <- paste(reference_A$strokeIndex, reference_A$roi_labelName, reference_A$roi_labelNum, sep = '_')
+reference_B$value <- paste(reference_B$strokeIndex, reference_B$roi_labelName, reference_B$roi_labelNum, sep = '_')
+reference_C$value <- paste(reference_C$strokeIndex, reference_C$roi_labelName, reference_C$roi_labelNum, sep = '_')
+reference_D$value <- paste(reference_D$strokeIndex, reference_D$roi_labelName, reference_D$roi_labelNum, sep = '_')
+reference_E$value <- paste(reference_E$strokeIndex, reference_E$roi_labelName, reference_E$roi_labelNum, sep = '_')
+reference_F$value <- paste(reference_F$strokeIndex, reference_F$roi_labelName, reference_F$roi_labelNum, sep = '_')
+
+#combine reference dataframes into one dataframe & check orig values against reference values (e.g., TRUE if matching)
+check.data.catch <- mget(paste0('reference_', c('A', 'B', 'C', 'D', 'E', 'F'))) %>%
+   bind_rows() %>%
+   right_join(data.catch, by = 'sketchID') %>%
+   group_by(gameID = gameID.y, sketchID, toy_id = toy_id.y, value = value.y) %>%
+   summarise(check = any(value.x == value.y))
+
+check.data.catch$check <- as.logical(check.data.catch$check)
+
+#calculate mean of TRUE/FALSE for each participant's catch trial
+catcher <- aggregate(check~gameID + sketchID + toy_id, check.data.catch, mean)
+
+#if catch trial included 2 or more errors, give FALSE for catch trials that fail to pass inclusion criteron
+catcher$pass <- ifelse(catcher$toy_id=="gears_1" & catcher$check > ((length(reference_A$roi_labelName) - 3)/length(reference_A$roi_labelName)), TRUE,
+                    ifelse(catcher$toy_id=="gears_2" & catcher$check > ((length(reference_B$roi_labelName) - 3)/length(reference_B$roi_labelName)), TRUE,
+                    ifelse(catcher$toy_id=="levers_1" & catcher$check > ((length(reference_C$roi_labelName) - 3)/length(reference_C$roi_labelName)), TRUE,
+                    ifelse(catcher$toy_id=="levers_2" & catcher$check > ((length(reference_D$roi_labelName) - 3)/length(reference_D$roi_labelName)), TRUE,
+                    ifelse(catcher$toy_id=="pulleys_1" & catcher$check > ((length(reference_E$roi_labelName) - 3)/length(reference_E$roi_labelName)), TRUE,
+                    ifelse(catcher$toy_id=="pulleys_2" & catcher$check > ((length(reference_F$roi_labelName) - 3)/length(reference_F$roi_labelName)), TRUE,
+                        FALSE))))))
+
+#extract catch trials that fail to pass
+caughtlowcatches <- subset(catcher, pass == FALSE)
+glimpse(length(unique(caughtlowcatches$gameID)))
+
+#remove all data sessions that contained failed catch trials
+data <- data[!(data$gameID %in% caughtlowcatches$gameID),]
+
+#how many participants?
+length(unique(data$gameID))
+
+#cleanup environment
+rm(catcher, check.data.catch, reference_A, reference_B, reference_C, reference_D, reference_E, reference_F)
+```
+```{r}
+#remove participants that did the orig causaldraw
+data <- data %>%
+  filter(!(wID %in% c("AVBRJBJONL47I")))
+
+# check <- orig_data11 %>% 
+  # filter((gameID %in% c("0495-db5fa7cd-9b89-48bc-95aa-bc8f0fdb76d3")))
+```
+
+## Inspect dataframe
+```{r}
+##provide meaningful labels to strokes
+#note that `background` will also include strokes depicting the light bulb
+data <- data %>% 
+  mutate(strokeType = ifelse((causal == TRUE) & (functional==TRUE) & (symbol==FALSE), 'causal',
+                        ifelse((causal == FALSE) & (functional==TRUE) & (symbol==FALSE), 'functional',
+                        ifelse((causal == FALSE) & (functional==FALSE) & (symbol==TRUE), 'symbol',
+                               'background')))) 
+
+data %>%
+  group_by(toy_id, condition, strokeType) %>%
+  summarize(N=n())
+```
+
+## Inspect sketches
+```{r}
+#how many unique sketches have we annotated? there should be 300 total
+length(unique(data$sketchID))
+
+sketchesrun <- list(unique(data$sketchID))
+sketchesrun <- as.data.frame(sketchesrun)
+colnames(sketchesrun)[1] <- "sketches"
+
+allsketches <- read_csv("../results/csv/allsketches.csv") 
+
+#extract which sketches are not been run yet
+missingsketches <- setdiff(allsketches,sketchesrun)
+glimpse(missingsketches)
+
+#have all sketches been annotated at least 3 times? (note to self: removed batch_id_across machines, because batch_id's of pilots after '5' will not match the previous batches)
+sketchcount <- data %>% 
+  group_by(sketchID) %>% 
+  summarise(count = n_distinct(gameID))
+hist(sketchcount$count)
+
+sketchcount$check <- ifelse(sketchcount$count < 3, TRUE, FALSE)
+needmore <- subset(sketchcount, count < 3)
+glimpse(needmore)
+# write.csv(exportneed,'../stimuli/causaldraw_annotations_patch.csv', row.names = FALSE)
+
+need1 <- subset(needmore, count == 2)
+need2 <- subset(needmore, count == 1)
+length(sketchcount$sketchID)
+
+toomany <- subset(sketchcount, count > 3)
+glimpse(toomany)
+```
+
+## Inspect batches
+```{r}
+#how many unique batches have we run? there should be 30 total
+length(unique(data$batch_id_across_machines))
+
+#make dataframe of all batches that have been run
+batchesrun <- list(unique(data$batch_id_across_machines))
+batchesrun <- as.data.frame(batchesrun)
+colnames(batchesrun)[1] <- "batches"
+
+#make dataframe of all batches that should be run
+batches <- c("gears_1_batch_0","gears_1_batch_1","gears_1_batch_2","gears_1_batch_3","gears_1_batch_4",
+              "gears_2_batch_0","gears_2_batch_1","gears_2_batch_2","gears_2_batch_3","gears_2_batch_4",
+              "levers_1_batch_0","levers_1_batch_1","levers_1_batch_2","levers_1_batch_3","levers_1_batch_4",
+              "levers_2_batch_0","levers_2_batch_1","levers_2_batch_2","levers_2_batch_3","levers_2_batch_4",
+              "pulleys_1_batch_0","pulleys_1_batch_1","pulleys_1_batch_2","pulleys_1_batch_3","pulleys_1_batch_4",
+              "pulleys_2_batch_0","pulleys_2_batch_1","pulleys_2_batch_2","pulleys_2_batch_3","pulleys_2_batch_4")
+allbatches <- as.data.frame(batches)
+
+#extract which batches are not been run yet
+missingbatches <- setdiff(allbatches,batchesrun)
+glimpse(missingbatches)
+```
+
+## Remove excess annotators
+```{r}
+#subset sketches that have been annotated by 3 and only first 3 annotators
+final_data <- data %>%
+  group_by(sketchID) %>%
+  mutate(count = match(gameID, unique(gameID))) %>%
+  filter(count <= 3)
+
+write.csv(final_data, '../results/csv/causaldraw_annotation_final_data.csv')
+# write.csv(final_data, '../results/csv/causaldraw_annotation_final_all_svg_data.csv')
+# write.csv(final_data, '../results/csv/causaldraw_annotation_final_svg_data.csv')
+
+glimpse(unique(final_data$roi_labelName))
+```
+
+#post-demographic analysis
+```{r}
+## count gender 
+# note to self: combine by aID because old bug prevented gameID collection in one of the survey plugins (this is not a problem for later studies)
+sketches_survey <- merge(final_data, orig_survey, by = c("aID"))
+
+#preprocessing
+processed <- sketches_survey %>%
+  separate(responses, c("participantSex", "judgedDifficulty"), ":", remove = FALSE)
+
+#make text pretty
+processed$judgedDifficulty <- substr(processed$judgedDifficulty,2,2) 
+colnames(processed)[which(names(processed) == "judgedDifficulty")] <- "gender"
+
+#count
+count_gender <- processed %>% 
+  filter(gender %in% c("F", "M", "N"))
+count_gender_ <- count_gender[!duplicated(count_gender$aID),]
+table(count_gender_$gender)
+
+ ## calculate mean age
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+
+processed <- processed %>%
+  separate(responses, c("participantAge", "participantComments"), ",", remove = FALSE)
+processed$DOB <- substrRight(processed$participantComments,5) 
+processed$DOB <- substr(processed$DOB,1,4) 
+calc_age <- processed[grep('^[0-9]', processed$DOB),]
+calc_age$DOB <- as.numeric(calc_age$DOB)
+calc_age_ <- calc_age$DOB
+calc_age_ <- as.data.frame(calc_age_)
+colnames(calc_age_) <- c("DOB")
+calc_age_$DOT <- 2020
+calc_age_ <- na.omit(calc_age_)
+calc_age_$age <- calc_age_$DOT - calc_age_$DOB
+mean(calc_age_$age)
+```
+
+
+```{r}
+#export list of workerIDs
+length(unique(final_data$wID))
+
+causaldraw_annotations_workerID <- as.data.frame(unique(final_data$wID))
+colnames(causaldraw_annotations_workerID)[1] <- "workerID"
+
+causaldraw_workerID <- read_csv('../results/csv/causaldraw_workerID.csv')
+checkDupes <- intersect(causaldraw_workerID$workerID, causaldraw_annotations_workerID$workerID)
+checkDupes
+````
+
+## Inspect exclusions
+```{r}
+#how many did we need to exclude from the total ran?
+totalrun - length(unique(data$gameID))
+
+#how many did we need to exclude from the total paid?
+totalpaid - length(unique(data$gameID))
+
+#percentage excluded from the total ran?
+(totalrun - length(unique(data$gameID)))/totalrun
+
+#percentage excluded from the total paid?
+(totalpaid - length(unique(data$gameID)))/totalpaid
+
+#cleanup environment
+rm(sketchcount, needmore, toomany, cleanup)
+```
+
+## Visualize ALL drawn elements, broken down by toy_id
+### (numStrokes)
+```{r}
+#calculate proportion for all drawn elements
+props.toys <- final_data %>% 
+  group_by(toy_id, condition, strokeType) %>%
+  summarize(N=n()) %>% 
+  ungroup() %>% 
+  group_by(toy_id, condition) %>% 
+  mutate(proportion=N/sum(N))
+
+#plot proportion
+props.toys.plot <- props.toys %>% 
+  ggplot(aes(x=condition, y=proportion, fill = strokeType)) +
+  geom_bar(stat="identity") +
+  facet_grid(.~toy_id) +
+  ggtitle("Number of strokes") +
+  xlab("condition") +
+  ylab("proportion") +
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+props.toys.plot + scale_fill_manual(values=wes_palette(n=4, name="Royal1"))
+
+ggsave('../results/plots/causaldraw_strokeType_bytoys_proportion.pdf', height = 18, width = 20, units = 'cm', useDingbats = F)
+```
+
+## Collapse across toy_ids
+```{r}
+#calculate proportion for all drawn elements
+props <- final_data %>% 
+  group_by(condition, strokeType) %>%
+  summarise(N=n()) %>%
+  mutate(proportion=N/sum(N))
+
+#plot proportion
+props.plot <- props %>% 
+  ggplot(aes(x=condition, y=proportion, fill = strokeType, label=sprintf("%.02f", proportion) )) +
+  geom_bar(stat="identity") +
+  ggtitle("Number of strokes") +
+  xlab("condition") +
+  ylab("proportion") +
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_text(size = 3, position = position_stack(vjust = 0.5))
+
+props.plot + scale_fill_manual(values=wes_palette(n=4, name="Royal1"))
+
+ggsave('../results/plots/causaldraw_strokeType_proportion.pdf', height = 18, width =8, units = 'cm', useDingbats = F)
+```
+#### diff colors, formatting for cogsci
+```{r}
+#calculate proportion for all drawn elements
+props <- final_data %>% 
+  group_by(condition, strokeType) %>%
+  summarise(N=n()) %>%
+  mutate(proportion=N/sum(N))
+
+# make plot
+props.plot <- props %>% 
+  ggplot(aes(x=condition, y=proportion, fill = strokeType, label=sprintf("%.03f", proportion))) +
+  geom_bar(stat="identity") +
+  xlab("condition") +
+  ylab("proportion") +
+  scale_x_discrete(labels=c("depict", "explain")) +
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5)) +  
+  theme(text = element_text(size = 4),
+        axis.text.x = element_text(size = 6),
+        axis.text.y = element_text(size = 9),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        legend.position = "none") +
+  # geom_text(size = 3, position = position_stack(vjust = 0.5))
+  geom_text(size = 2, position = position_stack(vjust = 0.5))
+
+props.plot + scale_fill_manual(values = c("#7F96AC", "#63948C", "#9FC8B7", "#F4D79F"))
+
+# ggsave('../results/plots/causaldraw_strokeType_proportion.pdf', height = 9, width = 5,  units = 'cm', useDingbats = F)
+ggsave('../results/plots/causaldraw_strokeType_proportion.pdf', height = 8, width = 3,  units = 'cm', useDingbats = F)
+```
+
+
+## Visualize ALL Drawn Elements, broken down by toy_id
+### (arcLength)
+```{r}
+arc.prop.toys <- final_data %>%
+  group_by(toy_id, condition, strokeType) %>%
+  summarise(totalsum = sum(arcLength)) %>%
+  mutate(proportion = totalsum/sum(totalsum))
+
+arc.prop.plot <- arc.prop.toys %>% 
+  ggplot(aes(x=condition, y=proportion, fill = strokeType, label=sprintf("%.02f", proportion))) +
+  geom_bar(stat="identity") +
+  ggtitle("Amount of ink") +
+  xlab("condition") +
+  ylab("proportion") +
+  facet_grid(.~toy_id) +
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+arc.prop.plot + scale_fill_manual(values=wes_palette(n=4, name="Royal1"))
+
+ggsave('../results/plots/causaldraw_arcLength_bytoys_proportion.pdf', height = 18, width = 20,  units = 'cm', useDingbats = F)
+```
+
+## collapse across toy_ids
+```{r}
+arc.prop <- final_data %>%
+  group_by(condition, strokeType) %>%
+  summarise(totalsum = sum(arcLength)) %>%
+  mutate(proportion = totalsum/sum(totalsum))
+
+arc.prop.plot <- arc.prop %>% 
+  ggplot(aes(x=condition, y=proportion, fill = strokeType, label=sprintf("%.02f", proportion))) +
+  geom_bar(stat="identity") +
+  ggtitle("Amount of ink") +
+  xlab("condition") +
+  ylab("proportion") +
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_text(size = 3, position = position_stack(vjust = 0.5))
+
+arc.prop.plot + scale_fill_manual(values=wes_palette(n=4, name="Royal1"))
+
+ggsave('../results/plots/causaldraw_arcLength_proportion.pdf', height = 18, width = 8,  units = 'cm', useDingbats = F)
+```
+
+```{r}
+#raw count of elements
+rawcount.plot <- final_data %>% 
+  ggplot(aes(x=condition, fill = strokeType)) +
+  geom_bar(position = 'dodge2', stat="count") +
+  facet_grid(.~toy_id) +
+  # facet_grid(gameID~toy_id) +
+  xlab("Condition") +
+  ylab("Raw Count") +
+  theme_light()
+
+rawcount.plot + scale_fill_manual(values=wes_palette(n=4, name="Royal1"))
+```
+
+## Visualize ONLY "entity" elements, i.e., causal and functional
+### (numStrokes)
+```{r}
+#remove non-entity elements
+onlyentities <- final_data %>% 
+  filter(!(roi_labelName %in% c("symbols"))) %>% 
+  filter(!(roi_labelName %in% c("background"))) %>% 
+  filter(!(roi_labelName %in% c("light")))
+# unique(onlyentities$roi_labelName)
+
+#calculate proportion for entity elements
+entity.props.toys <- onlyentities %>% 
+  group_by(toy_id, condition, strokeType) %>%
+  summarize(N=n()) %>% 
+  ungroup() %>% 
+  group_by(toy_id, condition) %>% 
+  mutate(proportion=N/sum(N))
+
+#plot proportion
+entity.props.toys.plot <- entity.props.toys %>% 
+  ggplot(aes(x=condition, y=proportion, fill = strokeType)) +
+  geom_bar(stat="identity") +
+  facet_grid(.~toy_id) +
+  xlab("condition") +
+  ylab("proportion") +
+  theme_light()
+
+entity.props.toys.plot + scale_fill_manual(values=wes_palette(n=4, name="Royal1"))
+
+ggsave('../results/plots/causaldraw_strokeType_entitytoys_proportion.pdf', height = 18, width = 20,  units = 'cm', useDingbats = F)
+```
+
+## collape across toy_id
+```{r}
+#plot proportion
+entity.props <- onlyentities %>% 
+  group_by(condition, strokeType) %>%
+  summarize(N=n()) %>% 
+  ungroup() %>% 
+  group_by(condition) %>% 
+  mutate(proportion=N/sum(N))
+
+entity.props.plot <- entity.props %>% 
+  ggplot(aes(x=condition, y=proportion, fill = strokeType, label=sprintf("%.02f", proportion))) +
+  geom_bar(stat="identity") +
+  xlab("condition") +
+  ylab("proportion") +
+  theme_light() +
+  geom_text(size = 3, position = position_stack(vjust = 0.5))
+
+entity.props.plot + scale_fill_manual(values=wes_palette(n=4, name="Royal1"))
+
+ggsave('../results/plots/causaldraw_strokeType_entity_proportion.pdf', height = 18, width = 8,  units = 'cm', useDingbats = F)
+```
+
+## simple chi-squared test for independence btw condition & causal relevance (pooling all strokes)
+```{r}
+## convert to counts dataframe 
+entityCounts <- entity.props %>%
+  mutate(causal=ifelse(strokeType == 'causal', TRUE, FALSE)) %>%
+  select(condition,causal,N)
+## convert counts to 2x2 contingency table
+entityTable <- xtabs(N ~ condition+causal, data=entityCounts)  
+## conduct chi-squared test
+chisq.test(entityTable)
+```
+
+```{r}
+#raw count of causal and functional elements
+plot.prop2 <- onlyentities %>% 
+  ggplot(aes(x=condition, fill = strokeType)) +
+  geom_bar(position = 'dodge2', stat="count") +
+  facet_grid (.~toy_id) +
+  theme_light()
+
+plot.prop2 + scale_fill_manual(values=wes_palette(n=4, name="Royal1"))
+```
+
+## Visualize ONLY symbols
+### (numStrokes)
+``` {r}
+#count number of symbol strokes by condition
+onlysymbols <- final_data %>% 
+  filter(!(strokeType %in% c("causal"))) %>% 
+  filter(!(strokeType %in% c("background"))) %>% 
+  filter(!(strokeType %in% c("functional")))
+
+#raw count
+symbol.plot <- onlysymbols %>% 
+  ggplot(aes(x=condition, fill=condition)) +
+  geom_bar(position = 'dodge2', stat="count") +
+  facet_grid(.~toy_id) +
+  xlab("condition") +
+  ylab("count") +
+  theme_light()
+
+symbol.plot + scale_fill_manual(values=wes_palette(n=4, name="Royal1"))
+```
+
+## Visualize ONLY symbols and background
+### (numStrokes)
+``` {r}
+#count number of symbol strokes by condition
+nonentities <- final_data %>% 
+  filter(!(strokeType %in% c("causal"))) %>% 
+  filter(!(strokeType %in% c("functional")))
+
+#raw count
+nonentity.plot <- nonentities %>% 
+  ggplot(aes(x=condition, fill=condition)) +
+  geom_bar(position = 'dodge2', stat="count") +
+  facet_grid(.~toy_id) +
+  xlab("condition") +
+  ylab("count") +
+  theme_light()
+
+nonentity.plot + scale_fill_manual(values=wes_palette(n=4, name="Royal1"))
+```
+
+```{r}
+#plot proportion
+nonentity.props <- nonentities %>% 
+  group_by(condition, strokeType) %>%
+  summarize(N=n()) %>% 
+  ungroup() %>% 
+  group_by(condition) %>% 
+  mutate(proportion=N/sum(N))
+
+nonentity.props.plot <- nonentity.props %>% 
+  ggplot(aes(x=condition, y=proportion, fill = strokeType, label=sprintf("%.02f", proportion))) +
+  geom_bar(stat="identity") +
+  xlab("condition") +
+  ylab("proportion") +
+  theme_light() +
+  geom_text(size = 3, position = position_stack(vjust = 0.5))
+
+nonentity.props.plot + scale_fill_manual(values=wes_palette(n=4, name="Royal1"))
+```
+
+```{r}
+#calculate proportion of RT for all drawn elements
+causaldraw_orig_strokeData <- read_csv('../results/csv/causaldraw_stroke_data_run1.csv')
+causaldraw_orig_strokeData <- as.data.frame(causaldraw_orig_strokeData)
+
+#match colnames causaldraw_orig_strokeData and finaldata
+#make sketchID
+causaldraw_orig_strokeData$toy_id <- paste0(causaldraw_orig_strokeData$toy_type, "_", causaldraw_orig_strokeData$toy_variant)
+causaldraw_orig_strokeData$sketchID <- paste0(causaldraw_orig_strokeData$toy_id, ".", causaldraw_orig_strokeData$gameID)
+
+#make strokeIndex
+causaldraw_orig_strokeData$strokeIndex <- causaldraw_orig_strokeData$currStrokeNum - 1
+
+processed_orig_strokeData <- causaldraw_orig_strokeData %>% 
+  select(c(gameID, endStrokeTime, startStrokeTime, sketchID, strokeIndex))
+
+processed_orig_strokeData$orig_gameID <- processed_orig_strokeData$gameID
+processed_orig_strokeData <- processed_orig_strokeData %>% 
+  select(-c(gameID))
+
+# merge dataframes
+merged_final_data <- merge(final_data, processed_orig_strokeData, by=c("sketchID", "strokeIndex")) 
+
+#cleanup
+merged_final_data$orig_gameID <- merged_final_data$orig_gameID.x
+merged_final_data <- merged_final_data %>% 
+  select(-c(orig_gameID.y))
+
+#calculate RT of original strokes
+merged_final_data$totalStrokeTime <- merged_final_data$endStrokeTime - merged_final_data$startStrokeTime
+
+mm <- merged_final_data %>% 
+  select(c(gameID, orig_gameID, totalStrokeTime, strokeType, condition, toy_type, roi_labelName, causal, toy_id, sketchID, strokeIndex)) 
+
+mm_onlyentities <- mm %>% 
+  filter(!(roi_labelName %in% c("symbols"))) %>% 
+  filter(!(roi_labelName %in% c("background"))) %>% 
+  filter(!(roi_labelName %in% c("light")))
+
+props_rt <- mm %>% 
+  group_by(condition, strokeType) %>%
+  summarise(totalsum = sum(totalStrokeTime)) %>%
+  mutate(proportion = totalsum/sum(totalsum))
+
+#plot proportion
+props.plot_RT <- props_rt %>% 
+  ggplot(aes(x=condition, y=proportion, fill = strokeType, label=sprintf("%.02f", proportion) )) +
+  geom_bar(stat="identity") +
+  ggtitle("drawing time") +
+  xlab("condition") +
+  ylab("proportion") +
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  geom_text(size = 3, position = position_stack(vjust = 0.5))
+
+props.plot_RT + scale_fill_manual(values=wes_palette(n=4, name="Royal1"))
+
+ggsave('../results/plots/causaldraw_strokeType_drawingTime_proportion.pdf', height = 18, width = 8,  units = 'cm', useDingbats = F)
+```
+
+```{r}
+props_rtMean <- mm %>% 
+  group_by(condition, strokeType) %>%
+  summarise(mean = mean(totalStrokeTime)) 
+
+
+
+
+#plot proportion
+props.plot_rtMean <- props_rtMean %>% 
+  ggplot(aes(x=condition, y=mean, fill = strokeType)) +
+  geom_bar(position = 'dodge2', stat="identity") +
+  ggtitle("drawing time") +
+  xlab("condition") +
+  ylab("raw") +
+  theme_light() +
+  theme(plot.title = element_text(hjust = 0.5)) 
+
+props.plot_rtMean + scale_fill_manual(values=wes_palette(n=4, name="Royal1"))
+```
+
+```{r}
+#raw count of elements
+rawcountRT.plot <- mm %>% 
+  ggplot(aes(x=condition, fill = strokeType)) +
+  geom_bar(position = 'dodge2', stat="count") +
+  # facet_grid(.~toy_id) +
+  ggtitle("drawing time (raw)") +
+  xlab("Condition") +
+  ylab("ms") +
+  theme_light()
+
+rawcountRT.plot + scale_fill_manual(values=wes_palette(n=4, name="Royal1"))
+```
+
+## simple chi-squared test for independence btw condition & causal relevance (pooling all strokes)
+```{r}
+## convert to counts dataframe 
+entityCounts <- entity.props %>%
+  mutate(causal=ifelse(strokeType == 'causal', TRUE, FALSE)) %>%
+  select(condition,causal,N)
+## convert counts to 2x2 contingency table
+entityTable <- xtabs(N ~ condition+causal, data=entityCounts)  
+## conduct chi-squared test
+chisq.test(entityTable)
+```
+
+## stats models
+```{r}
+# 1. Do people selectively attend to more causally relevant information in the explanation condition, 
+# and therefore, draw a higher proportion of causal elements? 
+m1 <- glmer(causal ~ condition + (1 + condition | orig_gameID) + (1 | sketchID) + (1 | toy_type) , family="binomial", data = onlyentities)
+summary(m1)
+```
+
+```{r}
+#check across all data if people draw more mechanical elements
+final_data$causalfunction <- ifelse(final_data$strokeType=='causal', TRUE, 
+                                    ifelse(final_data$strokeType=='functional', TRUE, 
+                                           FALSE))
+
+m_all <- glmer(causalfunction ~ condition + (1 + condition | orig_gameID) + (1 | sketchID) + (1 | toy_type) , family="binomial", data = final_data)
+summary(m_all)
+
+m_entities <- glmer(causal ~ condition + (1 + condition | orig_gameID) + (1 | sketchID), family="binomial", data = onlyentities)
+summary(m_entities)
+```
+
+```{r}
+# 2. Do people devote a higher proportion of "ink" to causal elements in the explanation condition?
+arc <- final_data %>%
+  group_by(orig_gameID, sketchID, condition, toy_type, causal) %>%
+  summarise(totalLength = sum(arcLength))
+
+#should we take the log of arc$sum since distribution is log?
+# hist(log(arc$totalLength))
+arc <- arc %>% 
+  mutate(logLength=log(totalLength))
+
+arc %>%
+  group_by(condition, causal) %>%
+  tidyboot_mean(column = logLength)
+
+m2 <- lmer(logLength ~ condition * causal + (1 + condition | orig_gameID) + (1 | toy_type), data = arc)
+summary(m2)
+```
+
+``` {r}
+# Do people devote shorter or longer strokes to causal elements in the explanation condition?
+hist(data$arcLength)
+hist(log(data$arcLength))
+
+m3 <- lm(log(arcLength) ~ condition * causal, data = final_data)
+summary(m3)
+```
+
+```{r}
+# 3. Do people use more symbols in the explanation condition?
+sym <- final_data %>% 
+  group_by(orig_gameID, sketchID, condition, toy_type, causal, roi_labelName) %>% 
+  summarise(count = n()) %>%
+  ungroup() %>%
+  group_by(orig_gameID, sketchID, condition, toy_type, causal, roi_labelName) %>%
+  summarise(sum = sum(count)) %>% 
+  filter(roi_labelName == "symbols")
+
+m4 <- lmer(sum ~ condition + (1 | orig_gameID) + (1 | toy_type), data = sym)
+summary(m4)
+```
+
+```{r}
+# 3. Do people use more background details in the depictive condition?
+target <- c("background")
+# target <- c("background", "light")
+  
+background <- final_data %>% 
+  group_by(orig_gameID, sketchID, condition, toy_type, causal, roi_labelName) %>% 
+  summarise(count = n()) %>%
+  ungroup() %>%
+  group_by(orig_gameID, sketchID, condition, toy_type, causal, roi_labelName) %>%
+  summarise(sum = sum(count)) %>% 
+  filter(roi_labelName %in% target)
+
+m5 <- lmer(sum ~ condition + (1 | orig_gameID) + (1 | toy_type), data = background)
+summary(m5)
+```
+
+```{r}
+#4. Do people more time drawing causal elements in the explanation condition?
+m6 <- lmer(log(totalStrokeTime) ~ condition*causal + (1 | orig_gameID) + (1 | toy_type), data = mm_onlyentities)
+summary(m6)
+```

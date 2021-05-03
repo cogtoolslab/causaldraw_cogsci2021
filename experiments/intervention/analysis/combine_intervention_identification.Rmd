@@ -1,0 +1,114 @@
+---
+title: "causaldraw_intervention"
+author: "Holly Huey"
+date: "11/8/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message = FALSE}
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(tidyr)
+library(reshape2)
+library(dplyr)
+library(plyr)
+library(ggplot2)
+library(stringr)
+require(tidyboot)
+require(wesanderson)
+```
+
+## Load in intervention data
+```{r message=FALSE}
+intervention_data <- read_csv('/Users/hollyhuey/causaldraw_intervention/intervention/results/csv/causaldraw_intervention_processed_data_2AFC.csv')  
+
+intervention_subset <- intervention_data %>% 
+  subset(select = c(sketchID, gameID, condition, phase, corrAns, toy_id, rt_annotationToKeyResponse))
+
+intervention_mean_corrAns <- aggregate(x=intervention_subset$corrAns,
+          by=list(intervention_data$sketchID, intervention_data$condition),
+          FUN=mean)
+colnames(intervention_mean_corrAns) <- c("sketchID", "condition", "intervention_corrAns")
+
+intervention_mean_rt <- aggregate(x=intervention_subset$rt_annotationToKeyResponse,
+          by=list(intervention_data$sketchID, intervention_data$condition),
+          FUN=mean)
+colnames(intervention_mean_rt) <- c("sketchID", "condition", "intervention_rt")
+
+intervention_other <- intervention_data %>% 
+  subset(select = c(sketchID, condition, numCausal, numFunctional, numBackground, numSymbol, 
+                    propCausal, propFunctional, propBackground, propSymbol))
+intervention_other_subset <- intervention_other[!duplicated(intervention_other), ]
+
+#combine all intervention data together
+intervention_mean <- merge(intervention_mean_corrAns, intervention_mean_rt, by = c("sketchID", "condition"))
+intervention_mean <- merge(intervention_mean, intervention_other_subset, by = c("sketchID", "condition"))
+
+rm(intervention_subset, intervention_mean_corrAns, intervention_mean_rt, intervention_other, intervention_other_subset)
+```
+
+## Load in identification data
+```{r message=FALSE}
+identification_data <- read_csv('/Users/hollyhuey/causaldraw_intervention/identification/results/csv/causaldraw_identification_processed_data.csv')
+
+identification_data <- identification_data %>% 
+  subset(select = c(sketchID, gameID, condition, phase, corrAns, toy_id, rt))
+
+identification_mean_corrAns <- aggregate(x=identification_data$corrAns,
+          by=list(identification_data$sketchID, identification_data$condition),
+          FUN=mean)
+colnames(identification_mean_corrAns) <- c("sketchID", "condition", "identification_corrAns")
+
+identification_mean_rt <- aggregate(x=identification_data$rt,
+          by=list(identification_data$sketchID, identification_data$condition),
+          FUN=mean)
+colnames(identification_mean_rt) <- c("sketchID", "condition", "identification_rt")
+
+identification_mean <- merge(identification_mean_corrAns, identification_mean_rt, by = c("sketchID", "condition"))
+
+rm(identification_mean_corrAns, identification_mean_rt)
+```
+
+## Load in intervention_2 data
+```{r message=FALSE}
+intervention_2_data <- read_csv('/Users/hollyhuey/causaldraw_intervention/intervention_2/results/csv/causaldraw_intervention_2_processed_data.csv')
+
+intervention_2_data <- intervention_2_data %>% 
+  subset(select = c(sketchID, gameID, condition, phase, corrAns, toy_id, rt))
+
+intervention_2_mean_corrAns <- aggregate(x=intervention_2_data$corrAns,
+          by=list(intervention_2_data$sketchID, intervention_2_data$condition),
+          FUN=mean)
+colnames(intervention_2_mean_corrAns) <- c("sketchID", "condition", "intervention_2_corrAns")
+
+intervention_2_mean_rt <- aggregate(x=intervention_2_data$rt,
+          by=list(intervention_2_data$sketchID, intervention_2_data$condition),
+          FUN=mean)
+colnames(intervention_2_mean_rt) <- c("sketchID", "condition", "intervention_2_rt")
+
+intervention_2_mean <- merge(intervention_2_mean_corrAns, intervention_2_mean_rt, by = c("sketchID", "condition"))
+
+rm(intervention_2_mean_corrAns, intervention_2_mean_rt)
+```
+
+## Combine data
+```{r message=FALSE}
+
+## note: merge by sketchID (wide) or long? 
+# https://stackoverflow.com/questions/23553407/calculating-mean-values-based-on-two-different-groupings-in-a-data-frame
+
+combined <- merge(intervention_mean, identification_mean, by = c("sketchID", "condition"))
+combined2 <- merge(combined, intervention_2_mean, by = c("sketchID", "condition"))
+write.csv(combined2, '../results/csv/combined_intervention_identification_intervention_2_2AFC_data.csv')
+
+head(combined2)
+```
+
+
+
+

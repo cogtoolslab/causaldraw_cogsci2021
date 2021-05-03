@@ -1,0 +1,334 @@
+/**
+ * CSS for jsPsych experiments
+ *
+ * This stylesheet provides minimal styling to make jsPsych experiments look polished without any additional styles
+ **/
+
+@import url(https://fonts.googleapis.com/css?family=Open+Sans:400italic,700italic,400,700);
+@import url('https://fonts.googleapis.com/css?family=Roboto');
+
+ /* SKETCHPAD CUES */
+#sketchpad_container {
+    height: 500px;
+    width: 500px;
+    position: absolute; 
+    top: 100px;
+    float: top;
+    left: 0px;
+    right: 0px;
+    margin: auto;
+    background: #ffffff;
+    border: solid 2px #999;
+}
+
+#sketchpad {
+    height: 500px;
+    width: 500px;
+    float: top;
+    margin-right:auto; margin-left:auto;
+    margin: auto;
+    background: #ffffff;
+}
+
+/* INSTRUCTION IMAGES */
+#canvas_demo {
+  height: 500px;
+  float: top;
+  margin-right:auto; margin-left:auto;
+  margin: auto;
+  background: #ffffff;
+}
+
+#alien_depict {
+  position: absolute; 
+  z-index: 100;
+  margin: auto;
+  left: 800px;
+  right: 0px;
+  top: 200px;
+}
+
+#alien_explain {
+  position: absolute; 
+  z-index: 100;
+  margin: auto;
+  left: 0px;
+  right: 800px;
+  top: 200px;
+}
+
+ /* VIDEO CUES */
+#cue_container {
+    height: 500px;
+    width: 888.88px;
+    position: absolute; 
+    top: 100px;
+    float: top;
+    left: 0px;
+    right: 0px;
+    margin: auto;
+    background: #ffffff;
+    border: solid 2px #999;
+    pointer-events: none;
+}
+
+/* PROMPT CUES */
+#prompt_container {
+  width: 1000px;
+  height: 60px;
+  float: top;
+  text-align: center;
+  position: absolute;
+  top: 50px;
+  left: 0px;
+  right: 0px;
+  margin: auto;
+  pointer-events: none;
+  z-index:3;
+}
+
+#prompt {
+  font-size:24px;
+  font-family: 'Roboto', 'Open Sans', sans-serif;
+  pointer-events: none;
+  margin: 0;
+  text-align: center;
+}
+
+/* #prompt_flashing {
+  width: 700px;
+  height: 35px;
+  float: top;
+  text-align: center;
+  position: absolute;
+  top: 50px;
+  left: 0px;
+  right: 0px;
+  margin: auto;
+  pointer-events: none;
+  z-index:3;
+
+  -webkit-animation: blink .75s infinite;
+  -moz-animation:    blink .75s infinite;
+  -ms-animation:     blink .75s infinite;
+  border: 2px solid;
+}
+
+@-webkit-keyframes blink {
+  0%   { border-color:blue; }
+  50%  { border-color:white;}
+  100% { border-color:red; }
+}
+@-moz-keyframes blink {
+  0%   { border-color:blue; }
+  50%  { border-color:white;}
+  100% { border-color:red; }
+}
+@-ms-keyframes blink {
+  0%   { border-color:blue; }
+  50%  { border-color:white;}
+  100% { border-color:red; }
+} */
+
+ /* LABEL CUES */
+#label_container {
+  width: 200px;
+  height: 60px;
+  position: absolute;
+  top: 180px; right:0; left:324px;
+  margin: 0;
+  pointer-events: none;
+  z-index:3;
+}
+
+#cue_label {
+  font-size:40px;
+  font-family: 'Roboto', 'Open Sans', sans-serif;
+  pointer-events: none;
+  margin: 0;
+}
+
+/* INKUSED Counter for participants to check how much ink they have left */
+#inkLeft_container {
+  width: 300px;
+  background-color: #ddd;
+}
+
+#inkLeft_bar_inner {
+  width: 0px;
+  height: 25px;
+  background-color: #4CAF50;
+  font-size: 15px;
+  font-family: 'Roboto', 'Open Sans', sans-serif;
+  text-align: left;
+}
+
+ /* BUTTON */
+#submit_button {
+  font-size: 24px;
+  font-family: 'Roboto', 'Open Sans', sans-serif;
+  width: 140px;  
+  top: 10px;
+  right: 0px; 
+  left: 0px;
+  margin: auto;
+  top: 625px;
+  position: absolute;
+}
+
+button {
+  cursor: pointer;
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 600;
+  border: solid#0D0F0B 2px;
+  border-radius: 5px;
+  background: white;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-align: center;
+  border-radius: 24px;
+}
+
+.green {
+  background: repeating-linear-gradient(
+    135deg,
+    #39BE8B,
+    #39BE8B 4px,
+    #5FCAA0 4px,
+    #5FCAA0 8px
+  );
+  -webkit-box-shadow: 4px 4px 0 #39BE8B;
+  box-shadow: 4px 4px 0 #39BE8B;
+}
+
+ /* Container holding jsPsych content */
+ .jspsych-display-element {
+   display: flex;
+   flex-direction: column;
+   overflow-y: auto;
+ }
+
+ .jspsych-display-element:focus {
+   outline: none;
+ }
+
+ .jspsych-content-wrapper {
+   display: flex;
+   margin: auto;
+   flex: 1 1 100%;
+   width: 100%;
+ }
+
+ .jspsych-content {
+   font-family: 'Roboto', 'Open Sans', sans-serif;
+   font-size: 24px;
+   max-width: 95%; /* this is mainly an IE 10-11 fix */
+   text-align: center;
+   margin: auto; /* this is for overflowing content */
+ }
+
+ .jspsych-top {
+   align-items: flex-start;
+ }
+
+ .jspsych-middle {
+   align-items: center;
+ }
+
+/* Fonts and type */
+.jspsych-display-element {
+  font-family: 'Roboto', 'Open Sans', sans-serif;
+  font-size: 24px;
+  line-height: 1.6em;
+}
+
+colexp {
+  color: #e01b00;
+  font-weight: bolder;
+}
+
+coldep {
+  color: #00a5f9;
+  font-weight: bolder;
+}
+
+/* Form elements like input fields and buttons */
+.jspsych-display-element input[type="text"] {
+  font-family: 'Roboto', 'Open Sans', sans-serif;
+  font-size: 14px;
+}
+
+/* Borrowing Bootstrap style for btn elements, but combining styles a bit */
+.jspsych-btn {
+  display: inline-block;
+  padding: 6px 12px;
+  margin: 0px;
+  font-size: 14px;
+  font-weight: 400;
+  font-family: 'Open Sans', 'Arial', sans-serif;
+  cursor: pointer;
+  line-height: 1.4;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;
+  background-image: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #333;
+  background-color: #fff;
+  border-color: #ccc;
+}
+
+.jspsych-btn:hover {
+  background-color: #ddd;
+  border-color: #aaa;
+}
+
+.jspsych-btn:disabled {
+  background-color: #eee;
+  color: #aaa;
+  border-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* jsPsych progress bar at the top of the page */
+#jspsych-progressbar-container {
+  color: #555;
+  border-bottom: 1px solid #dedede;
+  background-color: #f9f9f9;
+  margin-bottom: 1em;
+  text-align: center;
+  padding: 8px 0px;
+  width: 100%;
+  line-height: 1em;
+}
+#jspsych-progressbar-container span {
+  font-size: 14px;
+  padding-right: 14px;
+}
+#jspsych-progressbar-outer {
+  background-color: #eee;
+  width: 50%;
+  margin: auto;
+  height: 14px;
+  display: inline-block;
+  vertical-align: middle;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+}
+
+/* Set color */
+#jspsych-progressbar-inner {
+  background-color: #5FCAA0;
+  width: 0%;
+  height: 100%;
+}
+
+/* Control appearance of jsPsych.data.displayData() */
+#jspsych-data-display {
+  text-align: left;
+}
+
+/* Instruction Images */

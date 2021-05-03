@@ -1,0 +1,156 @@
+---
+title: "causaldraw_identification"
+author: "Holly Huey"
+date: "9/21/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message = FALSE}
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(tidyr)
+library(reshape2)
+library(plyr)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+require(tidyboot)
+library(emmeans)
+library(ggeffects)
+library(ggsignif)
+require(wesanderson)
+```
+
+## Load in data
+```{r message = FALSE}
+## note that this data has already been preprocessed so as to remove all identifiable information (originally collected on SONA)
+final_data <- read_csv("../results/csv/causaldraw_identification_processed_data.csv") 
+```
+
+## how many responses per sketch
+```{r}
+detach(package:plyr)
+
+sketchcount <- final_data %>% 
+  group_by(sketchID) %>% 
+  summarise(count = n_distinct(gameID))
+hist(sketchcount$count)
+
+mean(sketchcount$count)
+```
+
+```{r}
+# do we want to only analyze RTs for correct responses? 
+final_data_RT <- final_data %>% 
+  filter((corrAns %in% c(1))) %>% 
+  droplevels()
+```
+
+##Analyses for RT
+```{r}
+#NOTE! Only using RTs of correct responses
+
+## full model for RT
+# m_fullRT <- lmer(log(final_data_RT$rt) ~ condition + condition*numCausal + condition*numFunctional + condition*numSymbol + condition*numBackground + (1|sketchID) + (1|toy_type) + (1|orig_gameID) + (totalStrokes|condition) + (totalStrokes|toy_type), data=final_data_RT, REML=FALSE)
+# summary(m_fullRT)
+
+## reduced model, since the previous was overfitted
+m_reducedRT <- lmer(log(rt) ~ condition + condition*numCausal + condition*numFunctional + condition*numSymbol + condition*numBackground + (1|sketchID) + (1|orig_gameID), data=final_data_RT, REML=FALSE)
+summary(m_reducedRT)
+```
+
+### plot for RT
+```{r}
+## getting predictions
+df_rt <- ggpredict(m_reducedRT, terms = "condition")
+
+## making plot
+plot_rt <- ggplot(df_rt, aes(x, predicted, fill=x)) +
+  geom_bar(aes(y=predicted), stat="summary", width = .75, position = position_dodge(width = 0.5)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), alpha = .8, size = .75, width = 0) +
+  geom_signif(annotation = "**",
+          y_position = 2750,
+          xmin = "depictive",
+          xmax = "explanatory",
+          tip_length = 0) +
+  xlab("condition") +
+  ylab("rt") +
+  scale_x_discrete(labels=c("depict", "explain")) +
+  ylim(0, 3000) +
+  theme_light() +
+  theme(axis.text.x = element_text(size = 6), 
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        legend.position = "none")
+
+plot_rt + scale_fill_manual(values=c("#919191", "#00766e"))
+
+# ggsave('../results/plots/identification_rt.pdf', height = 8, width = 6,  units = 'cm', useDingbats = F)
+ggsave('../results/plots/identification_rt.pdf', height = 8, width = 3.25,  units = 'cm', useDingbats = F)
+```
+
+##Analyses for corrAns
+```{r}
+## full model for corrAns
+# m_fullcorrAns <- glmer(final_data$corrAns ~ condition + condition*numCausal + condition*numFunctional + condition*numSymbol + condition*numBackground + (1|sketchID) + (1|toy_type) + (1|orig_gameID) + (totalStrokes|condition) + (totalStrokes|toy_type), family="binomial", data=final_data, nAGQ=0)
+# summary(m_fullcorrAns)
+
+## reduced model, since the previous was overfitted
+#https://stats.stackexchange.com/questions/304132/glmer-not-converging
+m_reducedcorrAns <- glmer(corrAns ~ condition + condition*numCausal + condition*numFunctional + condition*numSymbol + condition*numBackground + (1|sketchID) + (1|orig_gameID), family="binomial", data=final_data, nAGQ=0)
+summary(m_reducedcorrAns)
+```
+
+### plot for corrAns
+```{r}
+df_corrAns <- ggpredict(m_reducedcorrAns, terms = c("condition"))
+
+## making plot
+plot_corrAns <- ggplot(df_corrAns, aes(x, predicted, fill=x)) +
+  geom_bar(aes(y=predicted), stat="summary", width = .75, position = position_dodge(width = 0.5)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), alpha = .8, size = .75, width=0) +
+  geom_signif(annotation = "*",
+          y_position = 0.95,
+          xmin = "depictive",
+          xmax = "explanatory",
+          tip_length = 0) +
+  xlab("condition") +
+  ylab("corrAns") +
+  scale_x_discrete(labels=c("depict", "explain")) +
+  ylim(0,1) +
+  theme_light() +
+  theme(axis.text.x = element_text(size = 6), 
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        legend.position = "none")
+
+plot_corrAns + scale_fill_manual(values=c("#919191", "#00766e"))
+
+# ggsave('../results/plots/identification_corrAns.pdf', height = 8, width = 6,  units = 'cm', useDingbats = F)
+ggsave('../results/plots/identification_corrAns.pdf', height = 8, width = 3,  units = 'cm', useDingbats = F)
+```
+
+### check for above chance in accuracy 
+```{r}
+## is explanatory above chance? 
+final_data_exp <- final_data %>%
+  filter(condition %in% c("explanatory"))
+
+above_chance_exp <- glmer(corrAns ~ 1 + (1|orig_gameID), family='binomial', data=final_data_exp)
+summary(above_chance_exp)
+
+## is depictive above chance? 
+final_data_dep <- final_data %>%
+  filter(condition %in% c("depictive"))
+
+above_chance_dep <- glmer(corrAns ~ 1 + (1|orig_gameID), family='binomial', data=final_data_dep)
+summary(above_chance_dep)
+```
+
