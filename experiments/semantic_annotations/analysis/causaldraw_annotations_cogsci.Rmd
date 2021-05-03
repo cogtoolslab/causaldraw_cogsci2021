@@ -18,7 +18,7 @@ library(tidyr)
 library(dplyr)
 library(ggrepel)
 # detach(package:dplyr)
-detach(package:plyr)
+# detach(package:plyr)
 library(ggplot2)
 library(stringr)
 require(tidyboot)
@@ -27,48 +27,8 @@ require(wesanderson)
 
 ## Load in and preprocess data
 ```{r message = FALSE}
-orig_data1 <- read_csv("../results/csv/causaldraw_annotations_label_data_pilot1.csv") 
-orig_data2 <- read_csv("../results/csv/causaldraw_annotations_label_data_pilot2.csv")
-orig_data3 <- read_csv("../results/csv/causaldraw_annotations_label_data_pilot3.csv") 
-orig_data4 <- read_csv("../results/csv/causaldraw_annotations_label_data_pilot4.csv") 
-orig_data5 <- read_csv("../results/csv/causaldraw_annotations_label_data_pilot5.csv") 
-
-#batches were reshuffled after for the pilot 5
-orig_data6 <- read_csv("../results/csv/causaldraw_annotations_label_data_pilot6.csv")
-orig_data7 <- read_csv("../results/csv/causaldraw_annotations_label_data_pilot7.csv")
-orig_data8 <- read_csv("../results/csv/causaldraw_annotations_label_data_pilot8.csv")
-orig_data9 <- read_csv("../results/csv/causaldraw_annotations_label_data_pilot9.csv")
-orig_data10 <- read_csv("../results/csv/causaldraw_annotations_label_data_pilot10.csv")
-orig_data11 <- read_csv("../results/csv/causaldraw_annotations_label_data_pilot11.csv")
-
-#extract batch_id_across_machines from strokes (this is only for pilots 1-5)
-orig_data1$batch_id_across_machines <- str_extract(gsub("'", '', orig_data1$strokes), "(?<=batch_id_across_machines: )\\w+")
-orig_data2$batch_id_across_machines <- str_extract(gsub("'", '', orig_data2$strokes), "(?<=batch_id_across_machines: )\\w+")
-orig_data3$batch_id_across_machines <- str_extract(gsub("'", '', orig_data3$strokes), "(?<=batch_id_across_machines: )\\w+")
-orig_data4$batch_id_across_machines <- str_extract(gsub("'", '', orig_data4$strokes), "(?<=batch_id_across_machines: )\\w+")
-orig_data5$batch_id_across_machines <- str_extract(gsub("'", '', orig_data5$strokes), "(?<=batch_id_across_machines: )\\w+")
-
-#combine datasets as needed into full dataset
-orig_data <- mget(paste0('orig_data', c('1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'))) %>%
-   dplyr::bind_rows()
-
-orig_survey1 <- read_csv("../results/csv/causaldraw_annotations_survey_data_pilot1.csv") 
-orig_survey2 <- read_csv("../results/csv/causaldraw_annotations_survey_data_pilot2.csv")
-orig_survey3 <- read_csv("../results/csv/causaldraw_annotations_survey_data_pilot3.csv") 
-orig_survey4 <- read_csv("../results/csv/causaldraw_annotations_survey_data_pilot4.csv") 
-orig_survey5 <- read_csv("../results/csv/causaldraw_annotations_survey_data_pilot5.csv") 
-orig_survey6 <- read_csv("../results/csv/causaldraw_annotations_survey_data_pilot6.csv")
-orig_survey7 <- read_csv("../results/csv/causaldraw_annotations_survey_data_pilot7.csv")
-orig_survey8 <- read_csv("../results/csv/causaldraw_annotations_survey_data_pilot8.csv")
-orig_survey9 <- read_csv("../results/csv/causaldraw_annotations_survey_data_pilot9.csv")
-orig_survey10 <- read_csv("../results/csv/causaldraw_annotations_survey_data_pilot10.csv")
-orig_survey11 <- read_csv("../results/csv/causaldraw_annotations_survey_data_pilot11.csv")
-
-orig_survey <- mget(paste0('orig_survey', c('1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'))) %>%
-   dplyr::bind_rows()
-
-orig_data <- orig_data %>% 
-  select(-c(strokes, ref_url, roi_colors, roi_ids, rois, batch_id_within_machine))
+orig_data <- read_csv("../results/csv/causaldraw_annotations_processed_data.csv") 
+orig_survey <- read_csv("../results/csv/causaldraw_annotations_processed_survey_data.csv")
 ```
 
 ## Initial exclusion checks
