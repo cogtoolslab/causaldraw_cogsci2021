@@ -30,7 +30,7 @@ This and all subsequent experiments were custom coded using plugins from ([jsPsy
 #### Data
 - `/analysis/results/csv/` contains preprocessed and anonymized CSVs for all participants
 
-### Semantic Annotations experiment
+### Semantic annotations experiment
 
 To measure  the  semantic  content  that  might  distinguish  visual explanations from depictions, we crowdsourced annotations of the drawings. 
 For each stroke in every drawing, annotators provided a label that described how they interpreted the stroke to correspond to elements in the target machine (e.g., “gear”, “lever”, “back-ground”).
@@ -71,7 +71,7 @@ Here we tested how well naive viewers could use the collected visual explanation
 #### Data
 - `/analysis/results/csv/` contains preprocessed and anonymized CSVs for all participants
 
-### Causal Intervention experiment
+### Causal intervention experiment
 Here we tested how well naive viewers could use the collected visual explanations and depictions to quickly and accurately infer which element to intervene on to produce an effect (i.e., which part of the machine to manipulate to activate the light bulb).
 
 <p align="center" style="font-size: smaller">
