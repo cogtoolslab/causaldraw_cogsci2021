@@ -11,8 +11,8 @@ How do we communicate our abstract knowledge to others? This project investigate
 ### Visual production experiment
 
 We developed a web-based drawing platform in which participants were presented with a series of video demonstrations showing a 6 different novel machines and asked to produce two kinds of drawings: 
-on \textit{explanation} trials, they were prompted to produce visual explanations that would help a naive viewer learn how the machine functioned in order to operate it; 
-on \textit{depiction} trials, they were prompted to produce visual depictions that would help a naive viewer identify the machine by its appearance. 
+on <i>explanation</i> trials, they were prompted to produce visual explanations that would help a naive viewer learn how the machine functioned in order to operate it; 
+on <i>depiction</i> trials, they were prompted to produce visual depictions that would help a naive viewer identify the machine by its appearance. 
 
 Participants used their cursor to draw in black ink on a dig-ital canvas embedded in their web browser (canvas = 500 x500px; stroke width = 5px). 
 Each stroke was rendered in realtime on the participant’s screen as they drew and could not be deleted once drawn. 
