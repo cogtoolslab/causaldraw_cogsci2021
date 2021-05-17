@@ -24,7 +24,7 @@ This and all subsequent experiments were custom coded using plugins from [jsPsyc
 - `/experiments/visual_production`
 
 #### Analysis
-- `/experiments/visual_production/analysis/` contains analysis scripts (in particular, task performance is analyzed in `causaldraw_analysis_cogsci.rmd`. Here we analyzed how many strokes and how long participants spent drawing in each condition.)
+- `/experiments/visual_production/analysis/` contains analysis scripts (in particular, task performance is analyzed in `causaldraw_analysis_cogsci.rmd`. Here we analyzed how many strokes and how long participants spent drawing in each condition.
 - `/analysis/utils/` contains helper functions
 
 #### Data
