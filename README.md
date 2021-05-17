@@ -16,9 +16,9 @@ on \textit{depiction} trials, they were prompted to produce visual depictions th
 
 Participants used their cursor to draw in black ink on a dig-ital canvas embedded in their web browser (canvas = 500 x500px; stroke width = 5px). 
 Each stroke was rendered in realtime on the participant’s screen as they drew and could not be deleted once drawn. 
-The digital canvas was generated using ([Paper.js])(http://paperjs.org/). 
+The digital canvas was generated using [Paper.js](http://paperjs.org/). 
 
-This and all subsequent experiments were custom coded using plugins from ([jsPsych])(https://www.jspsych.org/).
+This and all subsequent experiments were custom coded using plugins from [jsPsych](https://www.jspsych.org/).
 
 #### Where to find the experiment
 - `/experiments/visual_production`
