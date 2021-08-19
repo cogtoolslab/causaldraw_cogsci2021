@@ -15,7 +15,7 @@ function Trial() {
   this.type = 'jspsych-cued-drawing';
   this.dbname = 'causaldraw';
   this.colname = 'machines';
-  this.iterationName = 'run3'; //livetest0
+  this.iterationName = 'justin-test'; //livetest0
   this.dev_mode = false; // Change this to TRUE if testing in dev mode (short trial videos) or FALSE for real experiment
   // this.inkLeft = 100; // Commenting this out for EXP1A
   // this.inkBudgetWidth = 100;
