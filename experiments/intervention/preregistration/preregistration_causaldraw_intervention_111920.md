@@ -1,7 +1,7 @@
-# causaldraw_intervention analysis plan
+# Using visual representations of physical mechanisms to identify how objects function
 
 ### Title
-Using visual representations of physical mechanisms to identify how objects function
+causaldraw_intervention
 
 ### Researchers
 Holly Huey, Caren Walker, and Judith Fan
