@@ -156,14 +156,25 @@ also applied to the remainder of trials in that session.
 
 ###   References
 [1] Sloman, S. (2005). Causal models: how people think about the world and its alternatives. Oxford University Press.
+<br>
 [2] Meltzoff, A. (2007). Infants’ Causal Learning. Causal learning: psychology, philosophy, and computation, 37-47. Oxford University Press.
+<br>
 [3] Lagnado, D. A., & Sloman, S. (2004). The advantage of timely intervention. Journal of Experimental Psychology: Learning, Memory, and Cognition, 30(4), 856-76.
+<br>
 [4] Steyvers, M., Tenenbaum, J. B., Wagenmakers, E., & Blum, B. (2003). Inferring causal networks from observations and interventions. Cognitive Science, 27, 453-489. 
+<br>
 [5] Hermann, E., Call, J., Hernàndez-Lloreda, M. V., Hare, B., & Tomasello, M. (2007). Humans have evolved specialized skills of social cognition: the cultural intelligence hypothesis. Science, 317(5843), 1360-1366. 
+<br>
 [6] Boyd, R., Richerson, P. J., & Henrich, J. (2001). The cultural niche: why social learning is essential for human adaptation. Proceedings of the National Academy of Sciences, 108, 10918-10925. Science, 317(5843), 1360-1366.
+<br>
 [7] Tversky, B., Agrawala, M., Heiser, J., Lee, P., Hanrahan, P., Phan, D., & Daniel, M. P. (2006). Cognitive design principles for automated generation of visualizations. In Allen G, editor. Applied Spatial Cognition: From Research to Cognitive Technology, 53-75. Hillsdale, NJ: Lawrence Erlbaum Associates, Inc. 
+<br>
 [8] Larkin, J., & Simon, H. (1987). Why a diagram is (sometimes) worth ten thousand words. Cognitive Science: A Multidisciplinary Journal, 11, 65–100.
-[9] Tversky, B., & Bobek, E. (2016). Creating visual explanations improves learning. Cognitive Research: Principles and Implications, 1(1), 27.  
+<br>
+[9] Tversky, B., & Bobek, E. (2016). Creating visual explanations improves learning. Cognitive Research: Principles and Implications, 1(1), 27. 
+<br>
 [10] Tversky, B., & Morrison, J. B. (2002). Animation: can it facilitate? International Journal of Human-Computer Studies, 57, 247-262.
+<br>
 [11] Tversky, B., & Heiser, J., (2006). Arrows in comprehending and producing mechanical diagrams. Cognitive Science, 30, 581-592. 
+<br>
 [12] Tversky, B., Zacks, J., Lee, P., & Heiser, J. (2000). Lines, blobs, crosses and arrows: Diagrammatic communication with schematic figures. In International conference on theory and application of diagrams, 221-230. Springer, Berlin, Heidelberg. 
