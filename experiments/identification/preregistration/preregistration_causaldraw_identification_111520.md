@@ -69,6 +69,7 @@ We will analyze the effect of condition on two outcome variables: accuracy and r
 Below are how we plan to specify each measured variable corresponding to the statistical model: 
 
 Null model: Response time (RT)
+
 First, we will attempt to fit the “maximal” versions of each model, including both random slopes and intercepts for participants (i.e., `gameID`), items (i.e., `toy_type`), and sketch (i.e., `sketchID`) 
 
 m0 <- lmer(log(final_data$rt) ~ 1 + (1|toy_type) + (1|sketchID) + (1|gameID) + (totalStrokes|condition) + (totalStrokes|toy_type), data=final_data, REML=FALSE)
@@ -78,6 +79,7 @@ If the model fails to converge, we will remove the random intercept of toy_type 
 m0 <- lmer(log(final_data$rt) ~ 1 + (1|sketchID) + (1|gameID) + (totalStrokes|condition) + (totalStrokes|toy_type), data=final_data, REML=FALSE)
 
 Null model: Accuracy (corrAns)
+
 Because corrAns is binary (0 = incorrect, 1 = correct), we are using a glmer model: 
 
 m1 <- glmer(final_data$corrAns ~ 1 + (1|toy_type) + (1|sketchID) + (1|gameID) + (totalStrokes|condition) + (totalStrokes|toy_type), family="binomial", data=final_data)
@@ -87,6 +89,7 @@ If the model fails to converge, we will remove the random intercept of toy_type 
 m1 <- glmer(final_data$corrAns ~ 1 + (1|sketchID) + (1|gameID) + (totalStrokes|condition) + (totalStrokes|toy_type), family="binomial", data=final_data)
 
 Does condition influence response time (RT)? 
+
 m_RT <- lmer(log(final_data$rt) ~ condition + condition*numCausal + condition*numFunctional + condition*numSymbol + condition*numBackground + (1|toy_type) + (1|sketchID) + (1|gameID) + (totalStrokes|condition) + (totalStrokes|toy_type), data=final_data, REML=FALSE)
 
 If the model fails to converge, we will remove the random intercept of toy_type: 
@@ -95,9 +98,11 @@ m_RT <- lmer(log(final_data$rt) ~ condition + condition*numCausal + condition*nu
 summary(m4)
 
 Does condition influence accuracy 
+
 m_corrAns <- glmer(final_data$corrAns ~ condition + condition*numCausal + condition*numFunctional + condition*numSymbol + condition*numBackground + (1|toy_type) + (1|sketchID) + (1|gameID) + (totalStrokes|condition) + (totalStrokes|toy_type), family="binomial", data=final_data)
 
 If the model fails to converge, we will remove the random intercept of toy_type: 
+
 m_corrAns <- glmer(final_data$corrAns ~ condition + condition*numCausal + condition*numFunctional + condition*numSymbol + condition*numBackground + (1|sketchID) + (1|gameID) + (totalStrokes|condition) + (totalStrokes|toy_type), family="binomial", data=final_data)
 
 ### Data exclusion
@@ -108,15 +113,23 @@ Technical failure: Participants will complete an exit survey at the end of the e
 Failure to follow setup instructions: Before completing any test trials participants will be asked to make their browser window full screen to ensure that the participants’ browser window will have the entire stimuli in full view. If the dimensions of their browser window change throughout test trials, any test trials that have dimensions less than full screen will be excluded from subsequent analysis. Fullscreen will be determined by the dimensions of the first trial preceding immediately after participants are instructed to make their browser window fullscreen. 
 
 Session-level accuracy-based exclusion: 
+
 Absolute: To exclude sessions where responses seem to have been generated arbitrarily (i.e., by uniform guessing), we define two tiers of “chance-level” performance: (1) pure guessing between all six alternatives (16.7%); (2) pure guessing between the two variants of the same toy type (50%). Prior to data collection, we are uncertain about what mean accuracy will be, but insofar as there is any signal in these sketches at all to drive identification decisions, we expect it to exceed the 16.7% threshold. However, insofar as participants are guessing between the two variants within toy type, 50% might provide a better baseline for chance responding.
+
 We plan to pilot our experiment with N=10 participants.
+
 We estimate the mean accuracy for these participants. 
+
 If sample mean +/- 1 standard error > 50%, then we’ll use the higher tier of chance-level responding. Under the higher tier, we will exclude sessions where fewer than 170 responses were correct (detecting ~99% of sessions under chance responding)
+
 If sample mean +/- 1 standard error <= 50%, then we’ll use the lower tier of chance-level responding. Under the lower tier, we will exclude sessions where fewer than 60 trials were correct. 
+
 Relative: All data from a session will be excluded if accuracy is less than 2.5 standard deviations below the mean (using mean & sd on N-1 sample excluding that session).
 
-Trial-level response time outlier exclusions: 
+Trial-level response time outlier exclusions:
+
 Absolute: To ensure that participants are making thoughtful decisions and not merely clicking through the task, trials will be excluded from subsequent analysis if the response time is less than 0.5 seconds. Trials will also be excluded from subsequent analysis if participants do not make a response in 10 seconds.  
+
 Relative: Trials will be excluded if response times are greater than 2.5 standard deviations above the mean (using mean & sd on N-1 sample excluding that session).
 
 We plan to release “raw” group dataframes containing all sessions and trials, but “flag” sessions and trials that meet our exclusion criteria to make it easy to filter these out during analysis. We further plan to apply the same analyses to both the raw & filtered datasets to evaluate the impact of our exclusion criteria on our conclusions. 
@@ -127,11 +140,18 @@ Within visual depictions, we predict sketches that contain elements with higher 
 ## Other
 ### Other
 References
-[1] Sloman, S. (2005). Causal models: how people think about the world and its alternatives. Oxford University Press.
+[1] Sloman, S. (2005). Causal models: how people think about the world and its alternatives. Oxford University Press. 
+<br>
 [2] Meltzoff, A. (2007). Infants’ Causal Learning. Causal learning: psychology, philosophy, and computation, 37-47. Oxford University Press.
+<br>
 [3] Tversky, B., Agrawala, M., Heiser, J., Lee, P., Hanrahan, P., Phan, D., & Daniel, M. P. (2006). Cognitive design principles for automated generation of visualizations. In Allen G, editor. Applied Spatial Cognition: From Research to Cognitive Technology, 53-75. Hillsdale, NJ: Lawrence Erlbaum Associates, Inc.
+<br>
 [4] Larkin, J., & Simon, H. (1987). Why a diagram is (sometimes) worth ten thousand words. Cognitive Science: A Multidisciplinary Journal, 11, 65–100.
+<br>
 [5] Tversky, B., & Bobek, E. (2016). Creating visual explanations improves learning. Cognitive Research: Principles and Implications, 1(1), 27.
+<br>
 [6] Tversky, B., & Morrison, J. B. (2002). Animation: can it facilitate? International Journal of Human-Computer Studies, 57, 247-262.
+<br>
 [7] Tversky, B., & Heiser, J., (2006). Arrows in comprehending and producing mechanical diagrams. Cognitive Science, 30, 581-592.
+<br>
 [8] Tversky, B., Zacks, J., Lee, P., & Heiser, J. (2000). Lines, blobs, crosses and arrows: Diagrammatic communication with schematic figures. In International conference on theory and application of diagrams, 221-230. Springer, Berlin, Heidelberg.
